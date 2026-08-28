@@ -1,0 +1,108 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://policy-as-versioned-insurer.dev/schema/quote-payload.json",
+  "title": "insurer quote feed payload",
+  "description": "One quote feed per adopter (policy-composition ticket 14; ADR-0019, ADR-0021). The insurer prices under its own perspective (kind=insurer in the envelope's perspective vocabulary) from the platform and the adopter's own signed exposure, pinned as parents on party.yaml's inherits[]. The pricing seat that produces this payload is ticket 36 (not built yet); this schema fixes its shape so a consumer can pin it now. Every price carries its own perspective and currency (spec.md); no sum here crosses into the adopter's own prices[].",
+  "type": "object",
+  "required": [
+    "adopter",
+    "priced_against",
+    "attachment",
+    "limit",
+    "exclusions",
+    "premium",
+    "perspective",
+    "currency",
+    "conditions"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "adopter": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The adopter party this quote covers, e.g. 'driftwood'. One feed name (path) per adopter."
+    },
+    "priced_against": {
+      "type": "object",
+      "required": ["party", "kind", "name", "version"],
+      "additionalProperties": false,
+      "description": "The signed source this quote is priced from -- the adopter's exposure artefact, pinned the same way any inherits[] entry is.",
+      "properties": {
+        "party": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["controls", "implementations", "feed"] },
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 }
+      }
+    },
+    "attachment": {
+      "type": "object",
+      "required": ["amount", "currency"],
+      "additionalProperties": false,
+      "description": "The retention -- losses below this are the adopter's own, seen from the insurer's side. Equal to the adopter's own appetite.attachment.",
+      "properties": {
+        "amount": { "type": "number", "minimum": 0 },
+        "currency": { "type": "string", "minLength": 1 }
+      }
+    },
+    "limit": {
+      "type": "object",
+      "required": ["amount", "currency"],
+      "additionalProperties": false,
+      "description": "Annual aggregate limit of cover.",
+      "properties": {
+        "amount": { "type": "number", "minimum": 0 },
+        "currency": { "type": "string", "minLength": 1 }
+      }
+    },
+    "exclusions": {
+      "type": "array",
+      "description": "Keyed on the same obligation regime names and control ids the composition already prices on, so the quote reads the artefact the adopter signed.",
+      "items": {
+        "type": "object",
+        "required": ["regime", "control_ids"],
+        "additionalProperties": false,
+        "properties": {
+          "regime": { "type": "string", "minLength": 1 },
+          "control_ids": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    },
+    "premium": {
+      "type": "object",
+      "required": ["amount", "currency"],
+      "additionalProperties": false,
+      "description": "Booked as a contract cost line under the adopter's own perspective, beside costs.fix -- never summed with the insurer's own TVaR arithmetic.",
+      "properties": {
+        "amount": { "type": "number", "minimum": 0 },
+        "currency": { "type": "string", "minLength": 1 }
+      }
+    },
+    "perspective": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The perspective this quote's own pricing arithmetic (premium calculation) is booked under -- 'insurer'. Distinct from which perspective the resulting premium cost line lands in (the adopter's)."
+    },
+    "currency": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The currency this payload's own figures (attachment, limit, premium) are stated in before any restatement."
+    },
+    "conditions": {
+      "type": "array",
+      "description": "Carrier vocabulary: a named condition of cover and what happens if it is not met.",
+      "items": {
+        "type": "object",
+        "required": ["source", "id", "consequence"],
+        "additionalProperties": false,
+        "properties": {
+          "source": { "type": "string", "minLength": 1 },
+          "id": { "type": "string", "minLength": 1 },
+          "consequence": { "enum": ["void", "uplift"] }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,30 @@
+# The party artefact (policy-composition ticket 11; ADR-0012/ADR-0013,
+# extended by ticket 21/ADR-0019's feed contract and ticket 14's insurer
+# shape). One signed file declaring insurer: its roles, what it publishes,
+# and its parents as party+kind+name+version. Signed under the same gitsign
+# tag as every other artefact this repo publishes -- no second mechanism
+# (ADR-0012).
+#
+# The insurer prices under its own perspective from facts the adopter and
+# the platform already signed. It pins nothing yet: a platform pin here is a
+# Flux pin (gitops/platform/platform-pin.yaml) that party_artefact.py checks
+# against the declared version, and this repo has no Flux. The platform pin,
+# the adopter's signed exposure as a second parent, and the pricing seat are
+# ticket 36 (not built yet).
+# `publisher` with the quote feed declared (ticket 04 Answer 4: every
+# publisher party carries publishes[]; the set of signed publisher artefacts
+# IS the catalogue). No quote/v*/feed.json exists yet -- the first quote is
+# ticket 36 -- so verify/feed-contract grades the feed as could-not-look
+# (SKIP), never as published. quote/payload.schema.json is already in place.
+party: insurer
+roles: [publisher, insurer]
+inherits: []
+publishes:
+  - kind: feed
+    name: quote
+    path: quote
+    payload_schema: quote/payload.schema.json
+    revoked: []
+overlay:
+  add: []
+  restate: []
