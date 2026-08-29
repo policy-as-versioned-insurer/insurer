@@ -6,23 +6,73 @@
 # (ADR-0012).
 #
 # The insurer prices under its own perspective from facts the adopter and
-# the platform already signed. It pins nothing yet: a platform pin here is a
-# Flux pin (gitops/platform/platform-pin.yaml) that party_artefact.py checks
-# against the declared version, and this repo has no Flux. The platform pin,
-# the adopter's signed exposure as a second parent, and the pricing seat are
-# ticket 36 (not built yet).
-# `publisher` with the quote feed declared (ticket 04 Answer 4: every
-# publisher party carries publishes[]; the set of signed publisher artefacts
-# IS the catalogue). No quote/v*/feed.json exists yet -- the first quote is
-# ticket 36 -- so verify/feed-contract grades the feed as could-not-look
-# (SKIP), never as published. quote/payload.schema.json is already in place.
+# the platform already signed. Ticket 36 landed the pricing seat: the parents
+# below are pinned, `pricing/quote.py` prices from them, and one quote feed
+# per insured adopter is published under `quote/<adopter>/`.
 party: insurer
 roles: [publisher, insurer]
-inherits: []
+reporting_currency: GBP
+# The two kinds of parent this party prices from (ticket 14 answer 5).
+#
+# `platform/implementations` is a REAL pin with a real pin file: ticket 21 left
+# inherits[] empty because party_artefact.py checks this edge against a Flux pin
+# (gitops/platform/platform-pin.yaml) and this repo had none. It has one now.
+# The insurer runs no cluster, so that file carries the GitRepository document
+# alone -- the pin, which is all the checker reads and all Renovate bumps -- and
+# no Kustomization: a pure consumer pins the platform without pretending to
+# reconcile it. The file is the estate's one declared shape for "which signed
+# version of platform am I on", and this party is on v1.1.1 of it, which is the
+# fair.py and composition its pricer's arithmetic and its premium line share.
+#
+# Each `<adopter>/feed:exposure` edge pins the adopter's OWN signed exposure
+# section, rendered into its composed artefact by composition.py and signed
+# under that adopter's own tag. It is not an ADR-0019 envelope of its own, and
+# ADR-0019 closes the parent kinds to controls | implementations | feed, so
+# `feed` is the only honest slot for it and the version names the ADOPTER's tag
+# the section is signed under. Every quote also records the sha256 of the exact
+# section it priced, so a quote priced against a moved exposure is a visible
+# fact and a Renovate bump of these lines is what re-prices it.
+#
+# THE VERSION IS A TAG THAT EXISTS. These three lines used to read "v1.2.0",
+# meaning "the NEXT tag of each adopter, which the exposure section will land
+# in". No adopter had ever cut a v1.2.0, no adopter's publishes[] carried a feed
+# called `exposure`, and the string appeared nowhere in the estate except the
+# quotes that copied it back out of here -- so the pin resolved to nothing,
+# Renovate could not bump it, and the fabricated version was laundered into
+# driftwood's own signed evidence.json as the provenance of a six-figure cost
+# line (found 2026-08-29). Pinned now to v1.1.0, the highest tag each adopter
+# has actually signed and the one whose tree carries the exposure section, and
+# each adopter's party.yaml carries the matching `publishes[]` record so the pin
+# resolves the way ADR-0019 point 5 says discovery works. Moving to a newer
+# adopter tag is a reviewed pull request that edits these lines and re-renders
+# the quotes; `verify/feed-contract/` resolves them on every gate run.
+inherits:
+  - { party: platform,  kind: implementations, version: "1.1.1", since: '2026-08-28' }
+  - { party: driftwood, kind: feed, name: exposure, version: "v1.1.0", since: '2026-08-28' }
+  - { party: tuppence,  kind: feed, name: exposure, version: "v1.1.0", since: '2026-08-28' }
+  - { party: ludlow,    kind: feed, name: exposure, version: "v1.1.0", since: '2026-08-28' }
+# One feed name per insured adopter, each its own path, one shared payload
+# schema, one tag line (ticket 14 answer 4): an adopter's inherits[] entry then
+# names exactly its own cover, and a tag that re-priced only another adopter
+# lands in its prices[] as an honest no-change. The composer resolves `name` to
+# `path` through these records (ADR-0019) -- this is the first publisher in the
+# estate whose feed names and directories differ.
 publishes:
   - kind: feed
-    name: quote
-    path: quote
+    name: quote-driftwood
+    path: quote/driftwood
+    payload_schema: quote/payload.schema.json
+    # Withdrawal is a new version plus a listing here, never a deleted tag
+    # (ADR-0019 point 6). Nothing is withdrawn.
+    revoked: []
+  - kind: feed
+    name: quote-tuppence
+    path: quote/tuppence
+    payload_schema: quote/payload.schema.json
+    revoked: []
+  - kind: feed
+    name: quote-ludlow
+    path: quote/ludlow
     payload_schema: quote/payload.schema.json
     revoked: []
 overlay:

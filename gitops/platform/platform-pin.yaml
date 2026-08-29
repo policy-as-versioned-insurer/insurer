@@ -1,0 +1,32 @@
+# The insurer pins `platform` as a PINNED, SIGNED dependency, exactly as the
+# three adopters do (driftwood/gitops/platform/platform-pin.yaml). The pricer
+# in this repo prices in the platform's £ -- fair.py's money helpers and the
+# composition that books the premium as a contract cost line -- so which signed
+# version of the platform this party is on is a fact, not an implicit "latest".
+#
+# WHY THIS FILE EXISTS AT ALL, and why it carries no Kustomization: ticket 21
+# left this repo's party.yaml `inherits[]` empty because platform/party/
+# party_artefact.py checks a `platform/implementations` edge against
+# `gitops/platform/platform-pin.yaml`'s own spec.ref.tag, and this repo had no
+# such file. The insurer runs no cluster and reconciles nothing, so the
+# adopters' second document (the Kustomization that fans platform's version
+# array onto a cluster) would be a claim about a cluster that does not exist.
+# The GitRepository alone IS the pin: it is what the checker reads, what
+# Renovate bumps (renovate.json, git-refs datasource, tag and commit together)
+# and what a reader looks at to know which platform this party priced against.
+# A pure consumer therefore CAN carry the pin the checker expects; no comment
+# in the checker was needed and none was added.
+#
+# Bump = one reviewed PR changing .spec.ref.tag and .spec.ref.commit together,
+# and the quotes re-render against the new platform in the same PR.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: platform
+  namespace: flux-system
+spec:
+  interval: 1m
+  url: https://github.com/policy-as-versioned-platform/platform
+  ref:
+    tag: v1.1.1
+    commit: 58ef9c57e53543997e5ddbe829a7b7c9a2282c60

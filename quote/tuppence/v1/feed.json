@@ -1,0 +1,68 @@
+{
+  "kind": "feed",
+  "name": "quote-tuppence",
+  "version": "1.0.0",
+  "published_by": "insurer",
+  "published_at": "2026-08-28T00:00:00Z",
+  "payload_schema": "quote/payload.schema.json",
+  "payload": {
+    "adopter": "tuppence",
+    "perspective": "insurer",
+    "currency": "GBP",
+    "attachment": {
+      "amount": 15000.0,
+      "currency": "GBP"
+    },
+    "limit": {
+      "amount": 5000000,
+      "currency": "GBP"
+    },
+    "exclusions": [
+      {
+        "regime": "uk-gdpr",
+        "control_ids": [
+          "pl-2"
+        ],
+        "why": "The share of the uk-gdpr lower-tier exposure ico's published weights put on the system security plan (pl-2) is retained by the insured."
+      }
+    ],
+    "premium": {
+      "amount": 195000.0,
+      "currency": "GBP",
+      "perspective": "tuppence"
+    },
+    "formula": {
+      "id": "layer-rate-on-line",
+      "version": "1.0.0",
+      "rate": 0.03,
+      "load": 0.3,
+      "excluded": 2711937.3059292776,
+      "insured": 6550428.02573782,
+      "layer": 5000000.0
+    },
+    "valid_from": "2026-08-28",
+    "valid_until": "2027-08-28",
+    "priced_against": [
+      {
+        "party": "platform",
+        "kind": "implementations",
+        "version": "1.1.1"
+      },
+      {
+        "party": "tuppence",
+        "kind": "feed",
+        "name": "exposure",
+        "version": "v1.1.0",
+        "exposure_sha256": "sha256:25418091ed8922123f308cf7dcabd82a8a4aa4446203cae39725b6ec8b0d45da"
+      }
+    ],
+    "conditions": [
+      {
+        "source": "nist",
+        "id": "ac-6",
+        "consequence": "void",
+        "why": "Least privilege enforced on the governed namespace."
+      }
+    ]
+  }
+}

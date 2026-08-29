@@ -1,0 +1,12 @@
+# What "changed" means for the quote feed covering tuppence (ADR-0019; decided D2).
+# The insurer's daily clock re-prices from the pinned parents and opens a PR
+# only when the computed bump is not "none"; anything below the threshold
+# appends one line to observations/quote-tuppence.jsonl on the observations
+# branch and commits nothing signed (D1: a clock appends observations, never
+# declarations).
+#
+# Flat key: value only -- parsed with the standard library, no pyyaml on the
+# runner (feeds/bump.py:load_rule).
+changed_when: "the premium moves by more than 2%, or the attachment, the limit, any exclusion or condition, the validity dates or the pinned exposure sha256 changes at all"
+entries: premium
+numeric_tolerance: 0.02

@@ -48,8 +48,8 @@ if "insurer" not in roles:
     print(f"FAIL: {path} roles {roles} missing insurer")
     sys.exit(1)
 
-# publishes[] arrives with the first quote (ticket 36); until then it is
-# absent and the role publisher is not claimed. If present, both must hold.
+# publishes[] arrived with the first quotes (ticket 36). Kept conditional: a
+# party that publishes nothing must not claim the publisher role either.
 publishes = party.get("publishes") or []
 if publishes and "publisher" not in roles:
     print(f"FAIL: {path} declares publishes[] without the publisher role")

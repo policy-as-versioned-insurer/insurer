@@ -1,0 +1,30 @@
+# The insurer's OWN signed terms for ludlow (ticket 36; ticket 14 answers 1 and
+# 5). See driftwood.yaml for the long form of every field.
+version: 1.0.0
+published_at: '2026-08-28T00:00:00Z'
+valid_from: '2026-08-28'
+valid_until: '2027-08-28'
+currency: GBP
+# ludlow's declared appetite is near zero (5,000), so almost its whole exposure
+# sits inside the layer and the limit is what bounds this account, not the
+# attachment. Rated accordingly.
+limit: { amount: 4000000, currency: GBP }
+rate: 0.045
+load: 0.35
+exclusions:
+  - regime: uk-gdpr
+    control_ids: [pl-2, ra-3, ca-2]
+    why: >-
+      Governance-of-record failures: the shares ico's published weights put on
+      the system security plan (pl-2), the risk assessment (ra-3) and the
+      control assessment (ca-2) are retained by the insured.
+conditions:
+  - source: nist
+    id: ac-6
+    consequence: void
+    why: Least privilege enforced on the governed namespace.
+  - source: nist
+    id: cm-6
+    consequence: uplift
+    uplift: { amount: 10000, currency: GBP }
+    why: Configuration settings enforced; a lapse re-rates the account.

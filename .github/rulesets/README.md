@@ -41,6 +41,15 @@ The server-side half is this prepared artefact and nothing more. It becomes real
 Note also that the five publisher clocks push the `observations` branch, which a push ruleset does
 cover (it applies to every ref), where the old branch-targeted shape covered none of it.
 
+Named consequence, ticket 36: because a push ruleset covers every ref, the restricted paths also
+cover the `requote/*` PROPOSAL branch this repo's pricing clock pushes (`fetch.yml`, job
+`requote`), which carries `quote/<adopter>/v1/feed.json` and `quote/<adopter>/bump.yaml` — the same
+shape as the `feeds` repo's own `fetch/*` proposal branches. That is inert today (this repo is
+public, so the ruleset cannot be applied at all), and it is the right refusal in spirit and the
+wrong one in fact: the branch is a pull request a human reads, not a declaration reaching main.
+Whichever of the three routes above the owner takes, the proposal branches need a carve-out, or
+the clock can compute a re-quote and never propose it.
+
 ## What it says, and why
 
 A clock may **append observations** to the repository and may **never commit a declaration**

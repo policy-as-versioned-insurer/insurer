@@ -1,0 +1,5 @@
+# The bump declared for this feed's next release (ADR-0019). The re-quote job in
+# .github/workflows/fetch.yml rewrites this line in the PR it opens; a human
+# reviews it against what the rule computed, merges, and cut-release.yml signs
+# the tag quote-ludlow/vX.Y.Z. "none" means nothing is queued.
+bump: none

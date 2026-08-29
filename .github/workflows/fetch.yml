@@ -20,12 +20,15 @@ name: fetch
 # cut-release.yml already uses for tags, so the lane is a cage rather than a
 # policy statement once .github/rulesets/observation-lane.json is applied.
 #
-# ponytail: this repository ships no upstream fetcher yet, so the clock observes
-# what is published rather than comparing it against an upstream. The shape to
-# copy when it does is the feeds repo's own .github/workflows/fetch.yml plus its
-# fetch/lib.py: compute the bump under the feed's own rule.yaml, open a PR when
-# the bump is not `none` (D2), and fall through to this same observation branch
-# when it is. Nothing here changes when that lands.
+# Ticket 36 added the second job below, `requote`: the insurer's PRICING runs on
+# this same clock. Once a day, per insured adopter, it reads the adopter's own
+# signed exposure at the tag this repo pins, re-prices it under the insurer's own
+# signed terms with pricing/quote.py's versioned formula, and computes the bump
+# under that quote feed's own rule.yaml. Bump not `none` (D2) -> it opens a PR
+# carrying the new quote and the declared bump, and a HUMAN merges it and
+# dispatches cut-release.yml. Bump `none` -> nothing but the observation the
+# first job already appends. The clock never commits a quote: a price nobody
+# reviewed is not a contract.
 
 on:
   schedule:
@@ -34,6 +37,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
   id-token: write
 
 # The observation lane, declared once as data so the cage step and
@@ -206,3 +210,133 @@ jobs:
             -c user.email="fetch-bot@policy-as-versioned-insurer.invalid" \
             commit -S -m "observe insurer's published feeds"
           git push origin observations
+
+  # -----------------------------------------------------------------------
+  # ticket 36: the pricing seat, on the same clock (ADR-0019/D2, ADR-0021)
+  # -----------------------------------------------------------------------
+  requote:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      # one at a time: every adopter pushes a branch and asks gh for a PR, and a
+      # serial matrix keeps the rate limit and the review queue predictable.
+      max-parallel: 1
+      matrix:
+        adopter: [driftwood, tuppence, ludlow]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: install pinned gitsign (binary + checksum, no marketplace action)
+        run: |
+          set -euo pipefail
+          curl -sSL -o gitsign "https://github.com/sigstore/gitsign/releases/download/v${GITSIGN_VERSION}/gitsign_${GITSIGN_VERSION}_linux_amd64"
+          echo "${GITSIGN_SHA256}  gitsign" | sha256sum -c -
+          chmod +x gitsign && sudo mv gitsign /usr/local/bin/gitsign
+          rm -f gitsign
+
+      # The pin, read from this repo's OWN party.yaml inherits[] -- never a
+      # branch, never "latest". A quote is priced against the exact signed
+      # version the artefact names, which is also what priced_against records.
+      - name: read the exposure pin for ${{ matrix.adopter }}
+        id: pin
+        run: |
+          set -euo pipefail
+          pip install --quiet pyyaml
+          tag=$(python3 -c "
+          import sys, yaml
+          party = yaml.safe_load(open('party.yaml'))
+          pin = next((e for e in party['inherits']
+                      if e['party'] == '${{ matrix.adopter }}' and e.get('name') == 'exposure'), None)
+          sys.exit('REFUSED: party.yaml pins no exposure parent for ${{ matrix.adopter }}') if pin is None else None
+          print(pin['version'])")
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          # A tag a human has not cut yet is a COULD-NOT-LOOK, not a failure and
+          # never a reason to price against a branch: the exposure is only signed
+          # once the adopter's cut-release.yml has run.
+          if git ls-remote --exit-code --tags \
+               "https://github.com/policy-as-versioned-${{ matrix.adopter }}/${{ matrix.adopter }}" \
+               "refs/tags/${tag}" >/dev/null 2>&1; then
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::${{ matrix.adopter }} has no signed tag ${tag} yet -- nothing to price against today"
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: check out ${{ matrix.adopter }} at its signed tag
+        if: steps.pin.outputs.signed == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: policy-as-versioned-${{ matrix.adopter }}/${{ matrix.adopter }}
+          ref: ${{ steps.pin.outputs.tag }}
+          path: .adopters/${{ matrix.adopter }}
+
+      - name: re-price and compute the bump under the feed's own rule.yaml
+        id: price
+        if: steps.pin.outputs.signed == 'true'
+        run: |
+          set -euo pipefail
+          bump=$(python3 pricing/quote.py bump "${{ matrix.adopter }}" --adopters-dir .adopters)
+          echo "bump=${bump}" >> "$GITHUB_OUTPUT"
+          echo "::notice::${{ matrix.adopter }}: computed bump ${bump}"
+          if [ "${bump}" != "none" ]; then
+            python3 pricing/quote.py render "${{ matrix.adopter }}" --adopters-dir .adopters
+            sed -i "s/^bump: .*/bump: ${bump}/" "quote/${{ matrix.adopter }}/bump.yaml"
+            python3 -c "
+          import json
+          d = json.load(open('quote/${{ matrix.adopter }}/v1/feed.json'))['payload']
+          print('premium=%.2f %s' % (d['premium']['amount'], d['premium']['currency']))" \
+              >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: propose the re-quote as a PR (a human merges; this clock never commits one)
+        if: steps.price.outputs.bump != '' && steps.price.outputs.bump != 'none'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ADOPTER: ${{ matrix.adopter }}
+          BUMP: ${{ steps.price.outputs.bump }}
+          PREMIUM: ${{ steps.price.outputs.premium }}
+          TAG: ${{ steps.pin.outputs.tag }}
+        run: |
+          set -euo pipefail
+          branch="requote/${ADOPTER}-$(date -u +%Y%m%d)"
+          if git ls-remote --exit-code --heads origin "${branch}" >/dev/null 2>&1; then
+            echo "${branch} already open -- nothing to propose"; exit 0
+          fi
+          git checkout -b "${branch}"
+          git add "quote/${ADOPTER}/v1/feed.json" "quote/${ADOPTER}/bump.yaml"
+          git -c gpg.format=x509 -c gpg.x509.program=gitsign \
+            -c user.name="insurer pricing clock" \
+            -c user.email="requote-bot@policy-as-versioned-insurer.invalid" \
+            commit -S -m "quote-${ADOPTER}: ${BUMP} re-quote against ${TAG}"
+          git push origin "${branch}"
+          gh pr create --base main --head "${branch}" \
+            --title "quote-${ADOPTER}: ${BUMP} re-quote against ${TAG}" \
+            --body "$(printf '%s\n' \
+              "The daily pricing clock re-priced \`${ADOPTER}\`'s signed exposure at \`${TAG}\` under this repo's own signed terms and computed a **${BUMP}** bump against \`quote/${ADOPTER}/rule.yaml\`." \
+              "" \
+              "- ${PREMIUM}, booked as a contract cost under perspective \`${ADOPTER}\`" \
+              "- priced by \`pricing/quote.py\`, formula version in the payload" \
+              "- \`quote/${ADOPTER}/bump.yaml\` now declares \`${BUMP}\`" \
+              "" \
+              "Merging publishes nothing. Dispatch \`cut-release.yml\` with version \`quote-${ADOPTER}/vX.Y.Z\` to sign the tag. Until then \`${ADOPTER}\` stays pinned to the quote it already merged.")"
+
+      # The same cage the fetch job carries, for the same reason (D1): a clock
+      # proposes, it never declares. The PR step above works on its OWN branch;
+      # anything still sitting in the tree here would be a quote about to reach
+      # main without a review, so the run fails instead. Named for what
+      # verify/schedules/schedules.py looks for, because one name for one cage is
+      # how the workflow and the checker are kept from drifting apart.
+      - name: the observation cage -- nothing this clock priced reaches main unreviewed
+        if: always()
+        run: |
+          set -euo pipefail
+          git checkout main --quiet 2>/dev/null || true
+          left="$(git status --porcelain --untracked-files=all -- . ':!.adopters' || true)"
+          if [ -n "${left}" ]; then
+            echo "::error::the scheduled re-quote left an uncommitted change on main"
+            echo "${left}"
+            exit 1
+          fi
+          echo "ok  this clock proposed, and declared nothing"

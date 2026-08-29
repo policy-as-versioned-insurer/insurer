@@ -1,0 +1,26 @@
+# The insurer's OWN signed terms for tuppence (ticket 36; ticket 14 answers 1
+# and 5). See driftwood.yaml for the long form of every field, including why the
+# attachment is not restated here: it is the insured's own signed appetite.
+version: 1.0.0
+published_at: '2026-08-28T00:00:00Z'
+valid_from: '2026-08-28'
+valid_until: '2027-08-28'
+currency: GBP
+# tuppence signs no size, so ico's converter prices it at the statutory cap and
+# its exposure is the widest in the estate. The limit is written well inside
+# that: the layer clamps at the limit, and everything above the limit is
+# retained -- a fact its own composed prices[] carries, not a surprise.
+limit: { amount: 5000000, currency: GBP }
+rate: 0.03
+load: 0.3
+exclusions:
+  - regime: uk-gdpr
+    control_ids: [pl-2]
+    why: >-
+      The share of the uk-gdpr lower-tier exposure ico's published weights put
+      on the system security plan (pl-2) is retained by the insured.
+conditions:
+  - source: nist
+    id: ac-6
+    consequence: void
+    why: Least privilege enforced on the governed namespace.

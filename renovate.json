@@ -1,0 +1,36 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "automerge": false,
+  "dependencyDashboard": false,
+  "enabledManagers": [
+    "custom.regex"
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "The pinned platform dependency (config-base pattern, ticket mo-10, ADR-0001/ADR-0002). Renovate's native flux manager tracks a GitRepository's tag OR commit exclusively and cannot maintain the {tag, commit} pair ADR-0001 requires; this customManager (git-refs datasource) does both together. A bump here is a reviewed PR that also re-renders every quote against the new platform.",
+      "managerFilePatterns": [
+        "/^gitops/platform/platform-pin\\.yaml$/"
+      ],
+      "matchStrings": [
+        "tag: (?<currentValue>v[0-9.]+)\\s*\\n\\s*commit: (?<currentDigest>[a-f0-9]{40})"
+      ],
+      "datasourceTemplate": "git-refs",
+      "depNameTemplate": "https://github.com/policy-as-versioned-platform/platform",
+      "versioningTemplate": "semver"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "No live semver ranges anywhere (ADR-0002): every match above is pinned exact.",
+      "matchDatasources": [
+        "git-refs"
+      ],
+      "rangeStrategy": "pin"
+    }
+  ],
+  "platformCommit": "enabled"
+}

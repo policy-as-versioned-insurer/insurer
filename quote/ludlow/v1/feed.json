@@ -1,0 +1,80 @@
+{
+  "kind": "feed",
+  "name": "quote-ludlow",
+  "version": "1.0.0",
+  "published_by": "insurer",
+  "published_at": "2026-08-28T00:00:00Z",
+  "payload_schema": "quote/payload.schema.json",
+  "payload": {
+    "adopter": "ludlow",
+    "perspective": "insurer",
+    "currency": "GBP",
+    "attachment": {
+      "amount": 5000.0,
+      "currency": "GBP"
+    },
+    "limit": {
+      "amount": 4000000,
+      "currency": "GBP"
+    },
+    "exclusions": [
+      {
+        "regime": "uk-gdpr",
+        "control_ids": [
+          "pl-2",
+          "ra-3",
+          "ca-2"
+        ],
+        "why": "Governance-of-record failures: the shares ico's published weights put on the system security plan (pl-2), the risk assessment (ra-3) and the control assessment (ca-2) are retained by the insured."
+      }
+    ],
+    "premium": {
+      "amount": 128862.17,
+      "currency": "GBP",
+      "perspective": "ludlow"
+    },
+    "formula": {
+      "id": "layer-rate-on-line",
+      "version": "1.0.0",
+      "rate": 0.045,
+      "load": 0.35,
+      "excluded": 7231832.815811407,
+      "insured": 2126187.982537862,
+      "layer": 2121187.982537862
+    },
+    "valid_from": "2026-08-28",
+    "valid_until": "2027-08-28",
+    "priced_against": [
+      {
+        "party": "platform",
+        "kind": "implementations",
+        "version": "1.1.1"
+      },
+      {
+        "party": "ludlow",
+        "kind": "feed",
+        "name": "exposure",
+        "version": "v1.1.0",
+        "exposure_sha256": "sha256:b0808d7448a35baed84f2bd22e90189e71432c9110aa17e1a8661a48a9bdab58"
+      }
+    ],
+    "conditions": [
+      {
+        "source": "nist",
+        "id": "ac-6",
+        "consequence": "void",
+        "why": "Least privilege enforced on the governed namespace."
+      },
+      {
+        "source": "nist",
+        "id": "cm-6",
+        "consequence": "uplift",
+        "uplift": {
+          "amount": 10000,
+          "currency": "GBP"
+        },
+        "why": "Configuration settings enforced; a lapse re-rates the account."
+      }
+    ]
+  }
+}

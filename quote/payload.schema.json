@@ -2,97 +2,124 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://policy-as-versioned-insurer.dev/schema/quote-payload.json",
   "title": "insurer quote feed payload",
-  "description": "One quote feed per adopter (policy-composition ticket 14; ADR-0019, ADR-0021). The insurer prices under its own perspective (kind=insurer in the envelope's perspective vocabulary) from the platform and the adopter's own signed exposure, pinned as parents on party.yaml's inherits[]. The pricing seat that produces this payload is ticket 36 (not built yet); this schema fixes its shape so a consumer can pin it now. Every price carries its own perspective and currency (spec.md); no sum here crosses into the adopter's own prices[].",
+  "description": "One quote feed per insured adopter (policy-composition ticket 14; built by ticket 36; ADR-0019, ADR-0021). The insurer prices under its own perspective from the platform and the adopter's own signed exposure, both pinned as parents on party.yaml's inherits[] and both named in priced_against. Every price carries its own perspective and currency and no sum crosses them: the layer arithmetic below is the insurer's view, while the premium it produces is a contract cost booked under the adopter's perspective, beside costs.fix, and that is the only figure that crosses into the adopter's prices[].",
   "type": "object",
   "required": [
     "adopter",
-    "priced_against",
+    "perspective",
+    "currency",
     "attachment",
     "limit",
     "exclusions",
     "premium",
-    "perspective",
-    "currency",
+    "formula",
+    "valid_from",
+    "valid_until",
+    "priced_against",
     "conditions"
   ],
   "additionalProperties": false,
+  "definitions": {
+    "money": {
+      "type": "object",
+      "required": ["amount", "currency"],
+      "additionalProperties": false,
+      "properties": {
+        "amount": { "type": "number", "minimum": 0 },
+        "currency": { "type": "string", "pattern": "^[A-Z]{3}$" }
+      }
+    },
+    "date": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }
+  },
   "properties": {
     "adopter": {
       "type": "string",
       "minLength": 1,
-      "description": "The adopter party this quote covers, e.g. 'driftwood'. One feed name (path) per adopter."
+      "description": "The adopter party this quote covers, e.g. 'driftwood'. One feed name, and one path, per adopter."
     },
-    "priced_against": {
-      "type": "object",
-      "required": ["party", "kind", "name", "version"],
-      "additionalProperties": false,
-      "description": "The signed source this quote is priced from -- the adopter's exposure artefact, pinned the same way any inherits[] entry is.",
-      "properties": {
-        "party": { "type": "string", "minLength": 1 },
-        "kind": { "enum": ["controls", "implementations", "feed"] },
-        "name": { "type": "string", "minLength": 1 },
-        "version": { "type": "string", "minLength": 1 }
-      }
+    "perspective": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The perspective this payload's own arithmetic (the layer and the premium calculation) is booked under -- 'insurer'. Distinct from the perspective the resulting premium cost line lands in, which premium.perspective names."
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "description": "The currency this payload's figures are stated in before any restatement."
     },
     "attachment": {
-      "type": "object",
-      "required": ["amount", "currency"],
-      "additionalProperties": false,
-      "description": "The retention -- losses below this are the adopter's own, seen from the insurer's side. Equal to the adopter's own appetite.attachment.",
-      "properties": {
-        "amount": { "type": "number", "minimum": 0 },
-        "currency": { "type": "string", "minLength": 1 }
-      }
+      "allOf": [{ "$ref": "#/definitions/money" }],
+      "description": "The retention: losses below this are the adopter's own. EQUAL to the adopter's own signed appetite.tolerance, copied from its composed exposure section and never restated by the carrier (ticket 14 answer 1). verify-insurer-quote.sh fails if the two disagree."
     },
     "limit": {
-      "type": "object",
-      "required": ["amount", "currency"],
-      "additionalProperties": false,
-      "description": "Annual aggregate limit of cover.",
-      "properties": {
-        "amount": { "type": "number", "minimum": 0 },
-        "currency": { "type": "string", "minLength": 1 }
-      }
+      "allOf": [{ "$ref": "#/definitions/money" }],
+      "description": "Annual aggregate limit of cover, from the insurer's own signed terms."
     },
     "exclusions": {
       "type": "array",
-      "description": "Keyed on the same obligation regime names and control ids the composition already prices on, so the quote reads the artefact the adopter signed.",
+      "description": "Keyed on the same obligation regime names and control ids the adopter's own signed exposure partitions, so an excluded item prices as retained with no new lookup. No control_ids excludes the whole regime line.",
       "items": {
         "type": "object",
         "required": ["regime", "control_ids"],
         "additionalProperties": false,
         "properties": {
           "regime": { "type": "string", "minLength": 1 },
-          "control_ids": {
-            "type": "array",
-            "items": { "type": "string", "minLength": 1 }
-          }
+          "control_ids": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+          "why": { "type": "string", "minLength": 1 }
         }
       }
     },
     "premium": {
       "type": "object",
-      "required": ["amount", "currency"],
+      "required": ["amount", "currency", "perspective"],
       "additionalProperties": false,
-      "description": "Booked as a contract cost line under the adopter's own perspective, beside costs.fix -- never summed with the insurer's own TVaR arithmetic.",
+      "description": "What the cover costs. Booked as a contract cost line under the ADOPTER's perspective, beside costs.fix -- never summed with the insurer's own layer arithmetic (ticket 14 answer 3). composition.py reads exactly this object into the adopter's prices[] as the `premium` kind.",
       "properties": {
         "amount": { "type": "number", "minimum": 0 },
-        "currency": { "type": "string", "minLength": 1 }
+        "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+        "perspective": { "type": "string", "minLength": 1 }
       }
     },
-    "perspective": {
-      "type": "string",
-      "minLength": 1,
-      "description": "The perspective this quote's own pricing arithmetic (premium calculation) is booked under -- 'insurer'. Distinct from which perspective the resulting premium cost line lands in (the adopter's)."
+    "formula": {
+      "type": "object",
+      "required": ["id", "version", "rate", "load", "excluded", "insured", "layer"],
+      "additionalProperties": false,
+      "description": "Which versioned formula priced this quote and every intermediate it produced, so the premium is reproducible from the signed inputs by anyone, and this carrier's own pricer is never the only witness to its own number. The formula itself is pricing/quote.py in the insurer's repo.",
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+        "rate": { "type": "number", "minimum": 0 },
+        "load": { "type": "number", "minimum": 0 },
+        "excluded": { "type": "number", "minimum": 0 },
+        "insured": { "type": "number" },
+        "layer": { "type": "number", "minimum": 0 }
+      }
     },
-    "currency": {
-      "type": "string",
-      "minLength": 1,
-      "description": "The currency this payload's own figures (attachment, limit, premium) are stated in before any restatement."
+    "valid_from": { "$ref": "#/definitions/date" },
+    "valid_until": {
+      "allOf": [{ "$ref": "#/definitions/date" }],
+      "description": "The first expiring feed in this estate (ADR-0019). A pin held past this date is LAPSED COVER: the composition reads it as a behaviour and prices the layer as fully retained. It never refuses, and no cluster ever reads this date (ADR-0006 untouched)."
+    },
+    "priced_against": {
+      "type": "array",
+      "minItems": 2,
+      "description": "The exact parent versions this quote was priced from, read off the insurer's own party.yaml inherits[]: the platform whose engine defines the £, and the adopter's own signed exposure. The exposure parent carries the sha256 of the exact section that was priced, so a quote priced against a moved exposure is a visible fact and a re-quote is a pin bump.",
+      "items": {
+        "type": "object",
+        "required": ["party", "kind", "version"],
+        "additionalProperties": false,
+        "properties": {
+          "party": { "type": "string", "minLength": 1 },
+          "kind": { "enum": ["controls", "implementations", "feed"] },
+          "name": { "type": "string", "minLength": 1 },
+          "version": { "type": "string", "minLength": 1 },
+          "exposure_sha256": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+        }
+      }
     },
     "conditions": {
       "type": "array",
-      "description": "Carrier vocabulary: a named condition of cover and what happens if it is not met.",
+      "description": "Carrier vocabulary: a named condition of cover and what happens if it is not met, keyed (source, id) on the same control ids the composition already prices holes on.",
       "items": {
         "type": "object",
         "required": ["source", "id", "consequence"],
@@ -100,7 +127,9 @@
         "properties": {
           "source": { "type": "string", "minLength": 1 },
           "id": { "type": "string", "minLength": 1 },
-          "consequence": { "enum": ["void", "uplift"] }
+          "consequence": { "enum": ["void", "uplift"] },
+          "uplift": { "$ref": "#/definitions/money" },
+          "why": { "type": "string", "minLength": 1 }
         }
       }
     }

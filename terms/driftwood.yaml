@@ -1,0 +1,58 @@
+# The insurer's OWN signed terms for driftwood (ticket 36; ticket 14 answers 1
+# and 5). Independence of view comes from these inputs being the insurer's own
+# and signed under the insurer's own tag -- not from a second risk engine.
+#
+# What is NOT here, on purpose: the attachment. The attachment IS driftwood's
+# own signed appetite (`appetite.tolerance` on its party.yaml, rendered onto its
+# composed exposure section), seen from the other side. A carrier restating the
+# insured's retention in its own file is how the two come to disagree.
+version: 1.0.0
+published_at: '2026-08-28T00:00:00Z'
+valid_from: '2026-08-28'
+valid_until: '2027-08-28'
+currency: GBP
+# Annual aggregate limit of cover. Aggregate, not per-occurrence: it is the only
+# grain fair.py can slice today (one annual loss list), and it makes attachment
+# and appetite one number seen from two sides (ticket 14 answer 1).
+limit: { amount: 3000000, currency: GBP }
+# ponytail: rate and load are this carrier's calibration knobs, stated rather
+# than hidden, the same way platform/tcor/tcor.py's DEFAULT_LOAD says it is a
+# mid-range guess. `rate` is the rate on line over the exposure inside the
+# layer; `load` covers expenses and cost of capital. Upgrade path: when the
+# adopter's exposure section carries an aggregate loss distribution, formula
+# 2.0.0 prices the expected loss in the layer and `rate` retires (pricing/quote.py).
+rate: 0.035
+load: 0.25
+# Keyed on the regime names and (source, id) control keys the adopter's own
+# signed exposure already partitions, so an excluded item prices as retained
+# with no new lookup. Excluding a regime with no control_ids excludes the whole
+# line; naming control ids excludes exactly their share of it.
+exclusions:
+  - regime: uk-gdpr
+    control_ids: [pl-2, ra-3]
+    why: >-
+      Governance-of-record failures. The share of the uk-gdpr lower-tier
+      exposure that ico's published control weights put on the system security
+      plan (pl-2) and the risk assessment (ra-3) is retained by the insured:
+      this cover attaches to breach consequence, not to the insured's own
+      documentation of its programme.
+# Carrier vocabulary (research 07 section 4.2): a named condition of cover and
+# what happens if it is not met. Keyed the same way exclusions are, so the
+# composition can price a breach of one against the same control ids it already
+# prices holes on. ponytail: composition records these on the premium entry and
+# does not yet price a breached condition -- pricing void/uplift needs the
+# adopter's open-hole set at compose time, which is ticket 37's decision.
+conditions:
+  - source: nist
+    id: ac-6
+    consequence: void
+    why: >-
+      Least privilege enforced on the governed namespace. This estate implements
+      ac-6; cover is written on the assumption it stays implemented.
+  - source: nist
+    id: cm-6
+    consequence: uplift
+    uplift: { amount: 25000, currency: GBP }
+    why: >-
+      Configuration settings enforced. A lapse is survivable but re-rates the
+      account by the stated amount at the next re-quote.

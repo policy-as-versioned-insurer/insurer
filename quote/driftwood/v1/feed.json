@@ -1,0 +1,79 @@
+{
+  "kind": "feed",
+  "name": "quote-driftwood",
+  "version": "1.0.0",
+  "published_by": "insurer",
+  "published_at": "2026-08-28T00:00:00Z",
+  "payload_schema": "quote/payload.schema.json",
+  "payload": {
+    "adopter": "driftwood",
+    "perspective": "insurer",
+    "currency": "GBP",
+    "attachment": {
+      "amount": 40000.0,
+      "currency": "GBP"
+    },
+    "limit": {
+      "amount": 3000000,
+      "currency": "GBP"
+    },
+    "exclusions": [
+      {
+        "regime": "uk-gdpr",
+        "control_ids": [
+          "pl-2",
+          "ra-3"
+        ],
+        "why": "Governance-of-record failures. The share of the uk-gdpr lower-tier exposure that ico's published control weights put on the system security plan (pl-2) and the risk assessment (ra-3) is retained by the insured: this cover attaches to breach consequence, not to the insured's own documentation of its programme."
+      }
+    ],
+    "premium": {
+      "amount": 113403.3,
+      "currency": "GBP",
+      "perspective": "driftwood"
+    },
+    "formula": {
+      "id": "layer-rate-on-line",
+      "version": "1.0.0",
+      "rate": 0.035,
+      "load": 0.25,
+      "excluded": 1072306.2451030707,
+      "insured": 2632075.4928490305,
+      "layer": 2592075.4928490305
+    },
+    "valid_from": "2026-08-28",
+    "valid_until": "2027-08-28",
+    "priced_against": [
+      {
+        "party": "platform",
+        "kind": "implementations",
+        "version": "1.1.1"
+      },
+      {
+        "party": "driftwood",
+        "kind": "feed",
+        "name": "exposure",
+        "version": "v1.1.0",
+        "exposure_sha256": "sha256:397abe81d6cbdbd7b27a5d2516dd9c35417e9922f995b8b6af7d1fca34829820"
+      }
+    ],
+    "conditions": [
+      {
+        "source": "nist",
+        "id": "ac-6",
+        "consequence": "void",
+        "why": "Least privilege enforced on the governed namespace. This estate implements ac-6; cover is written on the assumption it stays implemented."
+      },
+      {
+        "source": "nist",
+        "id": "cm-6",
+        "consequence": "uplift",
+        "uplift": {
+          "amount": 25000,
+          "currency": "GBP"
+        },
+        "why": "Configuration settings enforced. A lapse is survivable but re-rates the account by the stated amount at the next re-quote."
+      }
+    ]
+  }
+}
