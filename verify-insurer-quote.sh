@@ -27,6 +27,21 @@
 # pin exists for a `feed` kind anywhere in this estate, and feed-contract grades
 # subscriptions only for parties with the adopter role, which this one is not).
 set -uo pipefail
+
+# Gate contract (BUILD-BRIEF.md): exit 0 = observed true, exit 3 = could not
+# look, anything else = observed false WITH `FAIL: <reason>` on the LAST line.
+# 2026-08-29 review: planting a real defect here ended the run on a raw Python
+# traceback ("AssertionError: ..."), which talk/verify-all.sh prints verbatim as
+# the row's reason and verify-e2e-step7-honesty.sh grades UNGRADED. The defect
+# was always detected; only the reason line was unreadable. This trap makes the
+# last line legible without swallowing the traceback above it.
+__verdict_trap() {
+  local rc=$?
+  [ "$rc" = 0 ] || [ "$rc" = 3 ] || echo "FAIL: a check above observed false (exit $rc); its own error line is the last one before this"
+  return "$rc"
+}
+trap __verdict_trap EXIT
+
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
 ADOPTERS_DIR="${ADOPTERS_DIR:-..}"
