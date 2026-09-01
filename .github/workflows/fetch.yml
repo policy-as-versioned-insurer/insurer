@@ -340,3 +340,5 @@ jobs:
             exit 1
           fi
           echo "ok  this clock proposed, and declared nothing"
+
+# registered 2026-09-01: this line exists so a push touches the workflow file (ecosystem ticket 57)

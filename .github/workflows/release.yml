@@ -114,3 +114,5 @@ jobs:
             --notes-file release-notes.md
         env:
           GH_TOKEN: ${{ github.token }}
+
+# registered 2026-09-01: this line exists so a push touches the workflow file (ecosystem ticket 57)
