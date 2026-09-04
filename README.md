@@ -3,6 +3,8 @@
 **GitHub org:** [`policy-as-versioned-insurer`](https://github.com/policy-as-versioned-insurer) ·
 **Role:** insurer — publisher · **Licence:** [Apache-2.0](LICENSE)
 
+*A demonstration party, not affiliated with, endorsed by or speaking for any real authority it names.*
+
 Part of the *Policy as Versioned Code* estate: the insurer pins the platform and each adopter's
 own signed exposure as parents (`inherits[]`, ADR-0019) and publishes one `quote` feed per
 adopter — the premium, its terms and what it excludes, priced under the insurer's own perspective
