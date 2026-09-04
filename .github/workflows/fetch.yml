@@ -240,6 +240,10 @@ jobs:
       # pin is used for" rule out of platform/party/pin_content.py, through the platform
       # release this repository pins -- so the platform checkout is part of pricing now, not
       # only of releasing. Pinned, like every other cross-org checkout in this estate.
+      # No platform TAG carries pin_content.py yet (checked tag by tag, 2026-09-04), so this
+      # checkout supplies the rule only once platform releases it and this repository's pin
+      # moves to that release; until then quote.py says could-not-look and prices on, which is
+      # why this step cannot stop the clock. See eco-system ticket 77, ## Waits on the owner.
       - name: read this repository's own platform pin
         id: platform_pin
         run: |

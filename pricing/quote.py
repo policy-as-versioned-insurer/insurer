@@ -82,6 +82,8 @@ EXPOSURE_FILE = os.path.join("composed", "HEADER.yaml")
 # same "library, not a service" shape every adopter's shift-left.yml already uses for
 # party_artefact.py and composition.py. PLATFORM_DIR is the checkout, the way verify-insurer-
 # quote.sh already names it; the release and fetch workflows check platform out at the pin.
+# A PINNED release that does not carry the rule yet is a could-not-look and not a refusal -- see
+# pin_content() below, which is where that decision is written down and why.
 PLATFORM_DIR = os.environ.get("PLATFORM_DIR") or os.path.join(os.path.dirname(REPO), "platform")
 
 
@@ -112,16 +114,22 @@ def exposure_of(adopter, adopters_dir):
 
 
 def pin_content():
-    """platform/party/pin_content.py, out of this repo's PINNED platform checkout. Its absence is
-    a missing instrument (ADR-0020): without the rule this pricer cannot tell a tag that resolves
-    from a tag whose tree carries the exposure it is about to attribute a premium to, and pricing
-    anyway is exactly the mistake that put `exposure v1.1.0` on three signed quotes."""
+    """platform/party/pin_content.py, out of this repo's PINNED platform checkout, or None when
+    the platform release this repository pins does not carry it.
+
+    None is a COULD-NOT-LOOK, deliberately, and not a refusal. The rule is new on the platform's
+    `ecosystem/build-2026-09-03` branch and no signed platform tag carries it yet (checked
+    2026-09-04, tag by tag: v0.1.0 to v2.0.1 and policy/v2.0.0 to policy/v4.0.0 -- none has
+    party/pin_content.py). Refusing here would have stopped a re-quote clock that works today on
+    every adopter, on the ground that a rule the estate has not released yet could not be read:
+    that is a check breaking the thing it grades. The pin is checked instead by the hub's
+    verify/feed-contract, which reads the publisher's real tag with git plumbing and needs no
+    platform release, and the day platform cuts a tag carrying this file the insurer's pin bump
+    turns the rule on here with no further change. See ## Waits on the owner in eco-system
+    ticket 77."""
     path = os.path.join(PLATFORM_DIR, "party", "pin_content.py")
     if not os.path.isfile(path):
-        raise Refused(f"missing instrument: no {path} -- this insurer prices through its pinned "
-                      f"platform dependency, and the rule that a pinned tree must carry the "
-                      f"section the pin names is in it. Check platform out at the tag "
-                      f"gitops/platform/platform-pin.yaml names, or set PLATFORM_DIR")
+        return None
     spec = importlib.util.spec_from_file_location("pin_content", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -136,15 +144,30 @@ def refuse_unless_tree_carries_exposure(adopter, adopters_dir, parents):
     tag is asserted where it can be: fetch.yml checks the adopter out at `ref: <the pin>` and
     nowhere else, and the hub's verify/feed-contract resolves the same pin against the adopter's
     real remote. What is checked HERE is the thing only the pricer knows -- that the content the
-    premium was computed from is the content the pin names."""
+    premium was computed from is the content the pin names.
+
+    Returns True when the rule ran, False when it could not be read out of the pinned platform
+    checkout. A could-not-look is announced on STDERR and never on stdout: `bump` writes the
+    computed bump to stdout and fetch.yml captures it."""
     pin = next((p for p in parents if p["party"] == adopter), None)
     if pin is None:                       # parents_of() has already refused; belt and braces
         raise Refused(f"missing instrument: no exposure pin for {adopter} to price against")
-    lacks = pin_content().refusal_for_pin(
+    rule = pin_content()
+    if rule is None:
+        print(f"NOTE: the platform release this repository pins "
+              f"(gitops/platform/platform-pin.yaml) carries no party/pin_content.py at "
+              f"{PLATFORM_DIR} -- no platform tag does yet -- so whether {adopter}'s pinned tree "
+              f"really carries the exposure section this quote prices was NOT checked here. It "
+              f"is checked by the hub's verify/feed-contract against {adopter}'s real remote, "
+              f"which today says could-not-look on this very pin. This is a could-not-look, not "
+              f"a pass and not a refusal.", file=sys.stderr)
+        return False
+    lacks = rule.refusal_for_pin(
         os.path.join(adopters_dir, adopter), adopter, "feed", "exposure", pin["version"],
         require_declaration=True)
     if lacks:
         raise Refused(lacks)
+    return True
 
 
 def exposure_sha256(exposure):

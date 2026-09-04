@@ -6,6 +6,13 @@
 # No cluster, no network: every fact below is a file in this repo or in a
 # sibling checkout of the party it is about.
 #
+# It also grades ONE seam on synthetic trees before it looks at the estate at
+# all (`--selfcheck` runs that alone): eco-system ticket 77's rule that a quote
+# never names a tag whose tree lacks the `exposure` section it priced, and the
+# could-not-look that rule degrades to while no platform release carries it.
+# Every published quote below is priced from a tree that does carry the section,
+# so neither path is reachable from the estate observation.
+#
 # What it looks at, per published quote feed:
 #   1. the quote is one ADR-0019 envelope and its payload validates against
 #      quote/payload.schema.json;
@@ -48,6 +55,119 @@ ADOPTERS_DIR="${ADOPTERS_DIR:-..}"
 NIST_DIR="${NIST_DIR:-../nist}"
 PLATFORM_DIR="${PLATFORM_DIR:-../platform}"
 
+# ---------------------------------------------------------------------------
+# The seam, on synthetic trees, run BEFORE the estate observation below
+# (BUILD-BRIEF definition of done, point 2). Eco-system ticket 77 gave
+# pricing/quote.py two new behaviours that NOTHING else in this repository or in
+# the hub's gate reaches: a refusal (never emit `priced_against` naming a version
+# whose tree lacks the `exposure` section it priced) and a could-not-look (no
+# platform tag carries party/pin_content.py yet, and a rule the estate has not
+# released is not a reason to stop a clock that would otherwise run). The
+# published quotes below are all priced from trees that DO carry the section, so
+# neither path is on the estate-observation route and without this leg the whole
+# of ticket 77's insurer half would be graded by no check anywhere.
+#
+# It prints ONE verdict line, and the main block records it, so the aggregate at
+# the bottom counts it like any other check. `--selfcheck` runs it alone.
+selfcheck() {
+  python3 - "$PLATFORM_DIR" <<'PYSELF'
+import importlib.util
+import os
+import sys
+import tempfile
+
+import yaml
+
+PLATFORM_DIR = sys.argv[1]
+spec = importlib.util.spec_from_file_location("quote", os.path.join("pricing", "quote.py"))
+quote = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(quote)
+
+
+def adopter_tree(root, with_exposure):
+    """A synthetic driftwood release: the publishes[] record ADR-0019 point 5 discovers the
+    section through, and a composed/HEADER.yaml that either carries the section or does not."""
+    os.makedirs(os.path.join(root, "composed"), exist_ok=True)
+    with open(os.path.join(root, "party.yaml"), "w") as fh:
+        yaml.safe_dump({"party": "driftwood", "roles": ["publisher"], "publishes": [
+            {"kind": "feed", "name": "exposure", "path": "composed",
+             "payload_schema": None}]}, fh)
+    header = {"perspective": "driftwood"}
+    if with_exposure:
+        header["exposure"] = {"total": 1, "currency": "GBP"}
+    with open(os.path.join(root, "composed", "HEADER.yaml"), "w") as fh:
+        yaml.safe_dump(header, fh)
+
+
+def fail(msg):
+    print(f"FAIL: quote.py pin-content seam: {msg}")
+    sys.exit(1)
+
+
+# The real pin out of this repo's own party.yaml -- the selfcheck grades the code, not a
+# made-up dependency graph.
+parents = quote.parents_of("driftwood")
+
+with tempfile.TemporaryDirectory() as tmp:
+    adopters = os.path.join(tmp, "adopters")
+    adopter_tree(os.path.join(adopters, "driftwood"), with_exposure=False)
+
+    # Leg 1. The pinned platform release does not carry the rule. Could-not-look, never a
+    # refusal: refusing here would stop the scheduled re-quote on every adopter because a
+    # rule the estate has not released yet could not be read.
+    quote.PLATFORM_DIR = os.path.join(tmp, "platform-without-the-rule")
+    try:
+        graded = quote.refuse_unless_tree_carries_exposure("driftwood", adopters, parents)
+    except quote.Refused as e:
+        fail(f"a pinned platform release with no party/pin_content.py made the pricer refuse "
+             f"({e}); an unreleased rule must not stop the clock")
+    if graded is not False:
+        fail("the pricer reported it had graded the pin while the rule was unreadable")
+
+    # Leg 2. The rule IS in the pinned release and the pinned tree lacks the section.
+    rule = os.path.join(PLATFORM_DIR, "party", "pin_content.py")
+    if not os.path.isfile(rule):
+        print(f"SKIP: quote.py pin-content seam: the could-not-look half is graded (a platform "
+              f"release without the rule prices on and says so), but the REFUSAL half could not "
+              f"be looked at: no {rule} in the platform checkout this run was given, and no "
+              f"platform tag carries the rule yet")
+        sys.exit(3)
+    quote.PLATFORM_DIR = PLATFORM_DIR
+    try:
+        quote.refuse_unless_tree_carries_exposure("driftwood", adopters, parents)
+    except quote.Refused as e:
+        if "missing instrument" not in str(e) or "exposure" not in str(e):
+            fail(f"the refusal does not name a missing instrument and the section: {e}")
+    else:
+        fail("a pinned tree whose composed/HEADER.yaml carries no exposure section was priced "
+             "anyway -- ticket 77's refusal does not bite")
+
+    # ... and a tree that does carry it is priced, so the refusal is not a blanket one.
+    adopter_tree(os.path.join(adopters, "driftwood"), with_exposure=True)
+    if quote.refuse_unless_tree_carries_exposure("driftwood", adopters, parents) is not True:
+        fail("a pinned tree that carries the exposure section was not graded by the rule")
+
+print("PASS: quote.py pin-content seam: with the rule absent from the pinned platform release "
+      "the pricer says could-not-look and prices on; with it present, a pinned tree that lacks "
+      "the exposure section is refused as a missing instrument and one that carries it is priced")
+PYSELF
+}
+
+if [ "${1:-}" = "--selfcheck" ]; then
+  selfcheck
+  exit $?
+fi
+
+# stderr carries the pricer's own could-not-look NOTE, which is the thing being graded and not
+# a verdict; the verdict is the single line on stdout.
+_sc_rc=0
+SELFCHECK_LINE="$(selfcheck 2>/dev/null)" || _sc_rc=$?
+if [ "$_sc_rc" != 0 ] && [ "$_sc_rc" != 3 ]; then
+  echo "${SELFCHECK_LINE:-FAIL: verify-insurer-quote.sh --selfcheck crashed}"
+  exit 1
+fi
+export SELFCHECK_LINE
+
 python3 - "$ADOPTERS_DIR" "$NIST_DIR" "$PLATFORM_DIR" <<'PYEOF'
 import importlib.util
 import json
@@ -78,6 +198,14 @@ def load_json(path):
 
 def close(a, b):
     return abs(float(a) - float(b)) <= max(1e-6, 1e-9 * max(abs(float(a)), abs(float(b))))
+
+
+# The seam's verdict, graded above on synthetic trees, counted here so the aggregate at the
+# bottom is the whole of what this script looked at.
+_selfcheck = os.environ.get("SELFCHECK_LINE") or ""
+if ":" in _selfcheck:
+    _status, _msg = _selfcheck.split(":", 1)
+    out(_status, _msg.strip())
 
 
 # --- the payload schema check ------------------------------------------------
