@@ -142,9 +142,17 @@ with tempfile.TemporaryDirectory() as tmp:
         fail("a pinned tree whose composed/HEADER.yaml carries no exposure section was priced "
              "anyway -- ticket 77's refusal does not bite")
 
-    # ... and a tree that does carry it is priced, so the refusal is not a blanket one.
+    # ... and a tree that does carry it is priced, so the refusal is not a blanket one. The
+    # Refused is caught here too (fixed 2026-09-04): a rule that OVER-refuses is exactly what
+    # this leg exists to catch, and unwrapped it surfaced as a traceback rather than the FAIL
+    # line the gate reads.
     adopter_tree(os.path.join(adopters, "driftwood"), with_exposure=True)
-    if quote.refuse_unless_tree_carries_exposure("driftwood", adopters, parents) is not True:
+    try:
+        graded = quote.refuse_unless_tree_carries_exposure("driftwood", adopters, parents)
+    except quote.Refused as e:
+        fail(f"a pinned tree that DOES carry the exposure section was refused ({e}); the refusal "
+             f"is a blanket one and would stop every re-quote in the estate")
+    if graded is not True:
         fail("a pinned tree that carries the exposure section was not graded by the rule")
 
 print("PASS: quote.py pin-content seam: with the rule absent from the pinned platform release "
