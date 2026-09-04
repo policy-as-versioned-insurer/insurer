@@ -45,6 +45,13 @@ permissions:
 # are the only paths any scheduled job in this repository may ever commit.
 env:
   OBSERVATION_LANE: "talk/truth.log drift/samples.jsonl talk/captures observations"
+  # Eco-system ticket 85, 2026-09-04, shared verbatim with the feeds clock that this shape was
+  # copied from. This job's readers are python heredocs today, so they write no bytecode into the
+  # tree -- but the requote job below runs `python3 pricing/quote.py`, which does, and the append
+  # step switches to an orphan branch that carries no .gitignore, where the cage reads every
+  # ignored file as an untracked one outside the lane. Feeds lost five of six feeds' observations
+  # to exactly that. Prevented here rather than diagnosed here.
+  PYTHONDONTWRITEBYTECODE: "1"
   GITSIGN_VERSION: 0.17.1
   GITSIGN_SHA256: 69213a8a0813a151e5a47d0060862952ff833a845d57309dff76f7ba6600abae
 
@@ -136,6 +143,14 @@ jobs:
           shopt -s nullglob
           files=("${RUNNER_TEMP}"/obs/*.jsonl)
           if [ ${#files[@]} -eq 0 ]; then echo "nothing observed"; exit 0; fi
+          # Before the branch switch, not after (ticket 85, 2026-09-04). This step had no clean
+          # at all: whatever an earlier step left in the tree -- tracked or gitignored -- came
+          # across to the orphan `observations` branch, which has no .gitignore, and the cage
+          # below refused it as a declaration outside the lane. The readings this step commits
+          # are already captured under ${RUNNER_TEMP}/obs, so nothing here is lost. Same two
+          # flags and the same reason as the feeds clock and the orphan path below.
+          git checkout -- . >/dev/null 2>&1 || true
+          git clean -ffdx -e .git >/dev/null 2>&1 || true
           if git ls-remote --exit-code --heads origin observations >/dev/null 2>&1; then
             git fetch origin observations:observations
             git checkout observations
