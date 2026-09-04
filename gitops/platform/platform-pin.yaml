@@ -19,6 +19,19 @@
 #
 # Bump = one reviewed PR changing .spec.ref.tag and .spec.ref.commit together,
 # and the quotes re-render against the new platform in the same PR.
+#
+# 2026-09-04, eco-system tickets 62 and 77. This pin read v1.1.1 while release.yml
+# checked platform out with NO ref -- the default branch -- so nothing ever ran
+# against the tree this file names. Ticket 77 item 4 pinned that checkout to this
+# file, which turned the stale value into a red gate: v1.1.1's party/schema.json
+# predates `reporting_currency` and `publishes`, both of which this repo's own
+# party.yaml carries, so verify-insurer-party.sh refused
+# ("unknown top-level field 'reporting_currency'"). Moved to v2.0.1, the tag the
+# three adopters already pin and the oldest one whose party schema this party
+# validates against; party.yaml's inherits[] platform edge moved with it, because
+# party_artefact.py checks that edge against this file's tag. The quotes did not
+# re-render: pricing/quote.py imports nothing from platform except the ticket-77
+# pin rule, and no arithmetic in it comes from fair.py.
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: GitRepository
 metadata:
@@ -28,5 +41,5 @@ spec:
   interval: 1m
   url: https://github.com/policy-as-versioned-platform/platform
   ref:
-    tag: v1.1.1
-    commit: 58ef9c57e53543997e5ddbe829a7b7c9a2282c60
+    tag: v2.0.1
+    commit: 533dccb0a823001b396fd60ab08014bf75065a37
