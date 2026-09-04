@@ -236,6 +236,36 @@ jobs:
           chmod +x gitsign && sudo mv gitsign /usr/local/bin/gitsign
           rm -f gitsign
 
+      # Ticket 77 item 1. The pricer reads the "a pinned tree must carry the section the
+      # pin is used for" rule out of platform/party/pin_content.py, through the platform
+      # release this repository pins -- so the platform checkout is part of pricing now, not
+      # only of releasing. Pinned, like every other cross-org checkout in this estate.
+      - name: read this repository's own platform pin
+        id: platform_pin
+        run: |
+          set -euo pipefail
+          pip install --quiet pyyaml
+          python3 -c "
+          import yaml
+          docs = [d for d in yaml.safe_load_all(open('gitops/platform/platform-pin.yaml')) if d]
+          ref = next(d for d in docs if d.get('kind') == 'GitRepository')['spec']['ref']
+          print('tag=%s' % ref['tag']); print('commit=%s' % ref['commit'])" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          repository: policy-as-versioned-platform/platform
+          path: .platform
+          ref: ${{ steps.platform_pin.outputs.tag }}
+
+      - name: platform is at the {tag, commit} pair this repository pins
+        run: |
+          set -euo pipefail
+          head="$(git -C .platform rev-parse HEAD)"
+          if [ "${{ steps.platform_pin.outputs.commit }}" != "${head}" ]; then
+            echo "REFUSED: .platform is at ${head}, but gitops/platform/platform-pin.yaml pins ${{ steps.platform_pin.outputs.tag }} at ${{ steps.platform_pin.outputs.commit }}" >&2
+            exit 1
+          fi
+
       # The pin, read from this repo's OWN party.yaml inherits[] -- never a
       # branch, never "latest". A quote is priced against the exact signed
       # version the artefact names, which is also what priced_against records.
@@ -277,11 +307,11 @@ jobs:
         if: steps.pin.outputs.signed == 'true'
         run: |
           set -euo pipefail
-          bump=$(python3 pricing/quote.py bump "${{ matrix.adopter }}" --adopters-dir .adopters)
+          bump=$(PLATFORM_DIR=.platform python3 pricing/quote.py bump "${{ matrix.adopter }}" --adopters-dir .adopters)
           echo "bump=${bump}" >> "$GITHUB_OUTPUT"
           echo "::notice::${{ matrix.adopter }}: computed bump ${bump}"
           if [ "${bump}" != "none" ]; then
-            python3 pricing/quote.py render "${{ matrix.adopter }}" --adopters-dir .adopters
+            PLATFORM_DIR=.platform python3 pricing/quote.py render "${{ matrix.adopter }}" --adopters-dir .adopters
             sed -i "s/^bump: .*/bump: ${bump}/" "quote/${{ matrix.adopter }}/bump.yaml"
             python3 -c "
           import json

@@ -55,6 +55,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 import sys
@@ -73,6 +74,15 @@ FORMULA_VERSION = "1.0.0"
 PAYLOAD_SCHEMA = "quote/payload.schema.json"
 # Where an adopter's own signed exposure lives inside its repo.
 EXPOSURE_FILE = os.path.join("composed", "HEADER.yaml")
+
+# This insurer pins `platform` in its own party.yaml and gitops/platform/platform-pin.yaml, and
+# reads ONE rule out of that pinned checkout: platform/party/pin_content.py, which says a pinned
+# tree must carry the section the pin is used for (eco-system ticket 77 item 1). Copying the rule
+# here would make two rules that could disagree; importing it through the pinned dependency is the
+# same "library, not a service" shape every adopter's shift-left.yml already uses for
+# party_artefact.py and composition.py. PLATFORM_DIR is the checkout, the way verify-insurer-
+# quote.sh already names it; the release and fetch workflows check platform out at the pin.
+PLATFORM_DIR = os.environ.get("PLATFORM_DIR") or os.path.join(os.path.dirname(REPO), "platform")
 
 
 class Refused(Exception):
@@ -99,6 +109,42 @@ def exposure_of(adopter, adopters_dir):
         raise Refused(f"missing instrument: {path} carries no `exposure` section -- there is no "
                       f"signed exposure to attach a layer to")
     return exposure, path
+
+
+def pin_content():
+    """platform/party/pin_content.py, out of this repo's PINNED platform checkout. Its absence is
+    a missing instrument (ADR-0020): without the rule this pricer cannot tell a tag that resolves
+    from a tag whose tree carries the exposure it is about to attribute a premium to, and pricing
+    anyway is exactly the mistake that put `exposure v1.1.0` on three signed quotes."""
+    path = os.path.join(PLATFORM_DIR, "party", "pin_content.py")
+    if not os.path.isfile(path):
+        raise Refused(f"missing instrument: no {path} -- this insurer prices through its pinned "
+                      f"platform dependency, and the rule that a pinned tree must carry the "
+                      f"section the pin names is in it. Check platform out at the tag "
+                      f"gitops/platform/platform-pin.yaml names, or set PLATFORM_DIR")
+    spec = importlib.util.spec_from_file_location("pin_content", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def refuse_unless_tree_carries_exposure(adopter, adopters_dir, parents):
+    """Ticket 77 item 1, the insurer's half: never emit `priced_against` naming a version whose
+    tree does not carry an `exposure` section.
+
+    The tree graded is the one this pricer was handed. Whether that tree is really the pinned
+    tag is asserted where it can be: fetch.yml checks the adopter out at `ref: <the pin>` and
+    nowhere else, and the hub's verify/feed-contract resolves the same pin against the adopter's
+    real remote. What is checked HERE is the thing only the pricer knows -- that the content the
+    premium was computed from is the content the pin names."""
+    pin = next((p for p in parents if p["party"] == adopter), None)
+    if pin is None:                       # parents_of() has already refused; belt and braces
+        raise Refused(f"missing instrument: no exposure pin for {adopter} to price against")
+    lacks = pin_content().refusal_for_pin(
+        os.path.join(adopters_dir, adopter), adopter, "feed", "exposure", pin["version"],
+        require_declaration=True)
+    if lacks:
+        raise Refused(lacks)
 
 
 def exposure_sha256(exposure):
@@ -198,6 +244,10 @@ def price(exposure, terms):
 # the envelope
 # --------------------------------------------------------------------------
 def payload(adopter, adopters_dir):
+    # The shared rule FIRST (ticket 77 item 1), so the refusal a reader sees is the estate's one
+    # sentence about pins and not this file's private restatement of half of it.
+    parents = parents_of(adopter)
+    refuse_unless_tree_carries_exposure(adopter, adopters_dir, parents)
     exposure, _ = exposure_of(adopter, adopters_dir)
     if exposure["perspective"] != adopter:
         raise Refused(f"missing instrument: {adopter}'s composed artefact signs an exposure "
@@ -224,7 +274,7 @@ def payload(adopter, adopters_dir):
         "priced_against": [
             dict(p, **({"exposure_sha256": exposure_sha256(exposure)}
                         if p.get("name") == "exposure" else {}))
-            for p in parents_of(adopter)
+            for p in parents
         ],
         "conditions": terms.get("conditions") or [],
     }
