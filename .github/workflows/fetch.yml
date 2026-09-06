@@ -40,11 +40,18 @@ permissions:
   pull-requests: write
   id-token: write
 
+# Trimmed 2026-09-06 (eco-system ticket 67 item (c)): this list was the hub's four-path
+# lane, copied verbatim into twelve unit workflows across eight repositories. It named paths
+# this repository has never owned. That is not cosmetic: the hub's verify/schedules/lane.py
+# grades every commit a scheduled identity lands HERE against the union of THIS repository's own
+# declarations, so each copied path was one a clock here could land and be graded green for. It
+# now names only what this repository owns, which every commit a clock has landed here already
+# fits. Graded by the hub's verify/map-surface/verify-map-surface.sh.
 # The observation lane, declared once as data so the cage step and
 # verify/schedules/verify-schedules.sh read the SAME list (ADR-0024, D1). These
 # are the only paths any scheduled job in this repository may ever commit.
 env:
-  OBSERVATION_LANE: "talk/truth.log drift/samples.jsonl talk/captures observations"
+  OBSERVATION_LANE: "observations"
   # Eco-system ticket 85, 2026-09-04, shared verbatim with the feeds clock that this shape was
   # copied from. This job's readers are python heredocs today, so they write no bytecode into the
   # tree -- but the requote job below runs `python3 pricing/quote.py`, which does, and the append
