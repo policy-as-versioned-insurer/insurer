@@ -19,6 +19,14 @@
 #      terms, lands on the same premium and the same intermediates. A quote
 #      priced against an exposure that has since moved is a could-not-look
 #      (a re-quote PR is due), never a pass;
+#   4b. the implied loss ratio -- the ORDINAL exposure inside the layer over the
+#      premium, which is what eco-system ticket 79 item 6 asked for as "expected
+#      layer loss over premium" and is deliberately not called that -- is printed
+#      on EVERY run and reds outside the band the carrier declares in its own
+#      terms file. The numerator is the insured's ORDINAL exposure inside the
+#      layer and not an expected layer loss, because the insured signs a point
+#      total and no distribution exists; the line says so every time it prints
+#      (eco-system ticket 79 item 6);
 #   5. no sum crosses a perspective: the layer arithmetic is the insurer's view,
 #      the premium is a cost on the adopter's sheet, and the platform's own
 #      fair.sum_prices refuses to add the two.
@@ -273,6 +281,34 @@ for entry in published:
         else:
             out("PASS", f"{name}: keys on no control ids (named absence)")
 
+    # 4b. the implied loss ratio, printed on EVERY run and red outside the band
+    #     the carrier declares in its own signed terms (eco-system ticket 79
+    #     item 6). Printed even when the premium did not reproduce above, because
+    #     it is a statement about the carrier's own rate and load and not about
+    #     whether this particular quote is current.
+    try:
+        lr = pricer.implied_loss_ratio(pricer.price(exposure, pricer.terms_of(adopter)),
+                                        pricer.terms_of(adopter))
+    except pricer.Refused as e:
+        lr = None
+        out("SKIP", f"{name}: no implied loss ratio -- the formula refuses over the signed "
+                    f"inputs: {e}")
+    if lr is None:
+        pass
+    elif lr["ratio"] is None:
+        out("PASS", f"{name}: no implied loss ratio -- {lr['basis']}")
+    else:
+        shown = (f"{name}: implied loss ratio {lr['ratio']:.4f} "
+                 f"(band {lr['band']['min']:.2f}-{lr['band']['max']:.2f}, from "
+                 f"{lr['band_source']}). {lr['basis']}")
+        if lr["in_band"]:
+            out("PASS", shown)
+        else:
+            out("FAIL", shown + " OUTSIDE THE DECLARED BAND: a ratio above the maximum means "
+                                "the premium is a token sum against the layer it stands behind; "
+                                "one below the minimum means the premium approaches the whole "
+                                "ordinal exposure, which is prepayment and not cover.")
+
     # 4. the premium reproduces from the signed inputs, and is not stale
     quoted_hash = next((p.get("exposure_sha256") for p in q["priced_against"]
                         if p.get("party") == adopter and p.get("name") == "exposure"), None)
@@ -379,6 +415,7 @@ if "SKIP" in LINES:
     sys.exit(3)
 print(f"PASS: {len(LINES)} checks -- every published quote validates, attaches at the insured's "
       f"own signed appetite, keys on real control ids, reproduces its premium from signed "
-      f"inputs, and crosses no perspective")
+      f"inputs, prints an implied loss ratio inside its own declared band, and crosses no "
+      f"perspective")
 sys.exit(0)
 PYEOF

@@ -13,6 +13,25 @@ currency: GBP
 limit: { amount: 5000000, currency: GBP }
 rate: 0.03
 load: 0.3
+# THE IMPLIED LOSS RATIO BAND (eco-system ticket 79 item 6). Delegated
+# (ADR-0025): a dimensionless calibration knob of the same kind as `rate` and
+# `load` above, stated rather than hidden, and the owner may overrule it.
+#
+# verify-insurer-quote.sh prints `layer / premium` on EVERY run and reds outside
+# this band. That quotient is IDENTICALLY 1 / (rate x (1 + load)), so it is a
+# statement about this carrier's own two knobs and not about the insured -- which
+# is exactly why it is worth banding. Above the maximum the premium is a token
+# sum against the layer it stands behind (a rate on line too thin for the account
+# to fund itself); below the minimum the premium approaches the whole exposure,
+# which is prepayment rather than cover.
+#
+# COULD NOT LOOK, and it is the whole limit of this number: the numerator is the
+# insured's ORDINAL exposure inside the layer, not an expected layer loss. The
+# insured signs a point total and no aggregate loss distribution exists to take
+# an expectation from (see the ponytail ceiling in pricing/quote.py). So this is
+# the reciprocal of the rate on line and NOT an actuarial loss ratio. It becomes
+# one at formula 2.0.0.
+loss_ratio_band: { min: 5.0, max: 50.0 }
 exclusions:
   - regime: uk-gdpr
     control_ids: [pl-2]
