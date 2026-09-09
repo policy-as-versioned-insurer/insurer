@@ -19,7 +19,9 @@
 #      terms, lands on the same premium and the same intermediates. A quote
 #      priced against an exposure that has since moved is a could-not-look
 #      (a re-quote PR is due), never a pass;
-#   4b. the implied loss ratio -- expected layer loss over premium -- is printed
+#   4b. the implied loss ratio -- the ORDINAL exposure inside the layer over the
+#      premium, which is what eco-system ticket 79 item 6 asked for as "expected
+#      layer loss over premium" and is deliberately not called that -- is printed
 #      on EVERY run and reds outside the band the carrier declares in its own
 #      terms file. The numerator is the insured's ORDINAL exposure inside the
 #      layer and not an expected layer loss, because the insured signs a point
@@ -297,8 +299,8 @@ for entry in published:
         out("PASS", f"{name}: no implied loss ratio -- {lr['basis']}")
     else:
         shown = (f"{name}: implied loss ratio {lr['ratio']:.4f} "
-                 f"(band {lr['band']['min']:.2f}-{lr['band']['max']:.2f}, declared in "
-                 f"terms/{adopter}.yaml). {lr['basis']}")
+                 f"(band {lr['band']['min']:.2f}-{lr['band']['max']:.2f}, from "
+                 f"{lr['band_source']}). {lr['basis']}")
         if lr["in_band"]:
             out("PASS", shown)
         else:

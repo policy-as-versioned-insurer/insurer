@@ -203,8 +203,11 @@ DEFAULT_LOSS_RATIO_BAND = {"min": 5.0, "max": 50.0}
 
 
 def implied_loss_ratio(worked, terms):
-    """Expected layer loss over premium — printed on EVERY run of
-    verify-insurer-quote.sh, and red outside a declared band.
+    """The ORDINAL exposure inside the layer over the premium — printed on EVERY
+    run of verify-insurer-quote.sh, and red outside a declared band. It is what
+    eco-system ticket 79 item 6 asked for as "expected layer loss over premium",
+    and it is deliberately NOT called that here, because no expected layer loss
+    exists to divide by anything (below).
 
     WHAT THE NUMERATOR ACTUALLY IS, said before the number is used. A true loss
     ratio wants E[loss in the layer]. The insured signs a POINT TOTAL, not an
@@ -232,14 +235,26 @@ def implied_loss_ratio(worked, terms):
     A layer of zero (an exposure inside the retention) is not a ratio at all and
     is returned as a NAMED absence, never as a division or a zero.
     """
+    # Review F6: WHERE the band came from, not just what it is. The verdict line
+    # used to say "declared in terms/<adopter>.yaml" whether or not it was: with
+    # `loss_ratio_band` deleted from a terms file it still said so, while the band
+    # came from the module default below.
     band = dict(DEFAULT_LOSS_RATIO_BAND)
     declared = terms.get("loss_ratio_band")
+    band_source = ("pricing/quote.py DEFAULT_LOSS_RATIO_BAND -- this carrier's own terms file "
+                   "declares no `loss_ratio_band`")
     if isinstance(declared, dict):
-        band.update({k: float(v) for k, v in declared.items() if k in ("min", "max")})
+        given = {k: float(v) for k, v in declared.items() if k in ("min", "max")}
+        band.update(given)
+        band_source = ("the carrier's own signed terms, which declare "
+                        + ", ".join(f"{k} {v}" for k, v in sorted(given.items()))
+                        + (" (the other end is pricing/quote.py's default)"
+                           if len(given) < 2 else ""))
     layer, premium = float(worked["layer"]), float(worked["premium"])
     identity = 1.0 / (float(terms["rate"]) * (1.0 + float(terms["load"])))
     if layer <= 0 or premium <= 0:
-        return {"ratio": None, "band": band, "identity": identity, "in_band": None,
+        return {"ratio": None, "band": band, "band_source": band_source,
+                "identity": identity, "in_band": None,
                 "basis": ("the layer is %.2f and the premium is %.2f, so there is no ratio to "
                            "take: this account's exposure sits inside its own retention. A named "
                            "absence, not a zero." % (layer, premium))}
@@ -247,6 +262,7 @@ def implied_loss_ratio(worked, terms):
     return {
         "ratio": ratio,
         "band": band,
+        "band_source": band_source,
         "identity": identity,
         "in_band": band["min"] <= ratio <= band["max"],
         "basis": ("%.4f = layer %.2f / premium %.2f, and identically 1 / (rate %.4f x (1 + load "
@@ -429,6 +445,10 @@ def selfcheck():
     assert abs(lr["ratio"] - 1.0 / (terms["rate"] * (1.0 + terms["load"]))) < 1e-9, lr
     tight = implied_loss_ratio(w, dict(terms, loss_ratio_band={"min": 0.0, "max": 0.5}))
     assert tight["in_band"] is False, tight
+    # review F6: a band that came from the default must not claim the terms file
+    bare = implied_loss_ratio(w, {k: v for k, v in terms.items() if k != "loss_ratio_band"})
+    assert "DEFAULT_LOSS_RATIO_BAND" in bare["band_source"], bare
+    assert "signed terms" in tight["band_source"], tight
     wide = implied_loss_ratio(w, dict(terms, loss_ratio_band={"min": 0.0, "max": 1e9}))
     assert wide["in_band"] is True, wide
     zero = implied_loss_ratio(price(exposure, dict(terms, limit={"amount": 0.0,
