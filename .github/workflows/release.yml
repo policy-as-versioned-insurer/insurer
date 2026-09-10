@@ -6,14 +6,11 @@ name: release
 # offline verify script as a release gate, and publishes a GitHub Release.
 # See cut-release.yml for how the tag gets here.
 #
-# verify-insurer-party.sh is offline and self-contained today (party.yaml,
-# publishes[] and the payload schema -- ticket 21's feed contract). The
-# sibling `platform` checkout below is here ahead of ticket 36, the real
-# pricing seat, which pins the platform's implementations the same way
-# ico's release gate pins `../platform/fair/fair.py` -- the same
-# two-checkouts-in-one-run technique driftwood's shift-left gate and ico's
-# own release gate use. Unused by the current gate; kept so ticket 36 does
-# not need a second workflow edit.
+# verify-insurer-party.sh uses the sibling platform's party checker and schema.
+# PLATFORM_TAG/PLATFORM_COMMIT pin that verifier software to a published signed
+# release. The insurer's economic platform parent remains declared separately in
+# party.yaml and gitops/platform/platform-pin.yaml; this verifier upgrade does
+# not re-price or re-render a quote.
 #
 # EXPECTED_IDENTITY_REGEXP is cut-release.yml's own Actions identity (ambient
 # credential, no human login) -- see that workflow's header comment for why.
@@ -42,6 +39,8 @@ permissions:
 
 env:
   TAG: ${{ inputs.tag || github.ref_name }}
+  PLATFORM_TAG: v3.0.0
+  PLATFORM_COMMIT: 3602142e5adb26945705c3dc3f86c1ab4ad66721
   GITSIGN_VERSION: 0.17.1
   GITSIGN_SHA256: 69213a8a0813a151e5a47d0060862952ff833a845d57309dff76f7ba6600abae
   EXPECTED_IDENTITY_REGEXP: ^https://github\.com/policy-as-versioned-insurer/insurer/\.github/workflows/cut-release\.yml@refs/heads/(main|release/[0-9]+\.[0-9]+\.x)$
@@ -61,6 +60,19 @@ jobs:
         with:
           repository: policy-as-versioned-platform/platform
           path: platform
+          ref: ${{ env.PLATFORM_TAG }}
+
+      # Ticket 77: the tag names the signed version; the commit pair refuses
+      # a checkout whose content moved under that name, before running its code.
+      - name: platform is at the verifier software tag and commit
+        run: |
+          set -euo pipefail
+          head="$(git -C platform rev-parse HEAD)"
+          if [ "${PLATFORM_COMMIT}" != "${head}" ]; then
+            echo "REFUSED: platform is at ${head}, but the verifier pins ${PLATFORM_TAG} at ${PLATFORM_COMMIT}" >&2
+            exit 1
+          fi
+          echo "ok  platform verifier is ${PLATFORM_TAG}"
 
       - name: install pinned gitsign (binary + checksum, no marketplace action)
         run: |
