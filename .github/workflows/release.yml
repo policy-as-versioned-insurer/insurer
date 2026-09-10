@@ -57,10 +57,37 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
+      # Ticket 77 item 4. This checkout used to carry no `ref:` -- platform's DEFAULT
+      # BRANCH -- while this repository's own party.yaml pins platform/implementations and
+      # gitops/platform/platform-pin.yaml carries the {tag, commit} pair Renovate bumps.
+      # The pin is read out of that file rather than written here, so the ref cannot drift
+      # from the artefact.
+      - name: read this repository's own platform pin
+        id: platform_pin
+        run: |
+          set -euo pipefail
+          pip install --quiet pyyaml
+          python3 -c "
+          import yaml
+          docs = [d for d in yaml.safe_load_all(open('insurer/gitops/platform/platform-pin.yaml')) if d]
+          ref = next(d for d in docs if d.get('kind') == 'GitRepository')['spec']['ref']
+          print('tag=%s' % ref['tag']); print('commit=%s' % ref['commit'])" >> "$GITHUB_OUTPUT"
+
       - uses: actions/checkout@v4
         with:
           repository: policy-as-versioned-platform/platform
           path: platform
+          ref: ${{ steps.platform_pin.outputs.tag }}
+
+      - name: platform is at the {tag, commit} pair this repository pins
+        run: |
+          set -euo pipefail
+          head="$(git -C platform rev-parse HEAD)"
+          if [ "${{ steps.platform_pin.outputs.commit }}" != "${head}" ]; then
+            echo "REFUSED: platform is at ${head}, but gitops/platform/platform-pin.yaml pins ${{ steps.platform_pin.outputs.tag }} at ${{ steps.platform_pin.outputs.commit }}" >&2
+            exit 1
+          fi
+          echo "ok  platform is ${{ steps.platform_pin.outputs.tag }}"
 
       - name: install pinned gitsign (binary + checksum, no marketplace action)
         run: |

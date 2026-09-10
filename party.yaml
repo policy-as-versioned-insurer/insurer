@@ -22,8 +22,15 @@ reporting_currency: GBP
 # alone -- the pin, which is all the checker reads and all Renovate bumps -- and
 # no Kustomization: a pure consumer pins the platform without pretending to
 # reconcile it. The file is the estate's one declared shape for "which signed
-# version of platform am I on", and this party is on v1.1.1 of it, which is the
+# version of platform am I on", and this party is on v2.0.1 of it, which is the
 # fair.py and composition its pricer's arithmetic and its premium line share.
+# It read v1.1.1 until 2026-09-04 (eco-system ticket 77 item 4): while release.yml
+# checked platform out with no `ref:` the value was never exercised, and pinning
+# that checkout to it made the release gate refuse, because v1.1.1's
+# party/schema.json predates the `reporting_currency` and `publishes` fields this
+# very file carries. v2.0.1 is the tag driftwood, tuppence and ludlow already pin.
+# This line and gitops/platform/platform-pin.yaml move together, always: that is
+# what party_artefact.py checks.
 #
 # Each `<adopter>/feed:exposure` edge pins the adopter's OWN signed exposure
 # section, rendered into its composed artefact by composition.py and signed
@@ -42,13 +49,19 @@ reporting_currency: GBP
 # Renovate could not bump it, and the fabricated version was laundered into
 # driftwood's own signed evidence.json as the provenance of a six-figure cost
 # line (found 2026-08-29). Pinned now to v1.1.0, the highest tag each adopter
-# has actually signed and the one whose tree carries the exposure section, and
-# each adopter's party.yaml carries the matching `publishes[]` record so the pin
-# resolves the way ADR-0019 point 5 says discovery works. Moving to a newer
+# has actually signed, and each adopter's party.yaml carries the matching
+# `publishes[]` record so the pin resolves the way ADR-0019 point 5 says
+# discovery works. It does NOT yet resolve to content: ticket 77 checked the
+# three v1.1.0 TREES on 2026-09-04 and not one carries an `exposure` section --
+# the section is on each adopter's branch, waiting for a release. Until the owner
+# dispatches those three releases (## Waits on the owner, ticket 77) the hub's
+# verify/feed-contract says could-not-look on these three lines, which is the
+# honest reading: the pin names a tag that exists and content that is queued.
+# Moving to a newer
 # adopter tag is a reviewed pull request that edits these lines and re-renders
 # the quotes; `verify/feed-contract/` resolves them on every gate run.
 inherits:
-  - { party: platform,  kind: implementations, version: "1.1.1", since: '2026-08-28' }
+  - { party: platform,  kind: implementations, version: "2.0.1", since: '2026-08-28' }
   - { party: driftwood, kind: feed, name: exposure, version: "v1.1.0", since: '2026-08-28' }
   - { party: tuppence,  kind: feed, name: exposure, version: "v1.1.0", since: '2026-08-28' }
   - { party: ludlow,    kind: feed, name: exposure, version: "v1.1.0", since: '2026-08-28' }
