@@ -20,18 +20,17 @@
 # Bump = one reviewed PR changing .spec.ref.tag and .spec.ref.commit together,
 # and the quotes re-render against the new platform in the same PR.
 #
-# 2026-09-04, eco-system tickets 62 and 77. This pin read v1.1.1 while release.yml
-# checked platform out with NO ref -- the default branch -- so nothing ever ran
-# against the tree this file names. Ticket 77 item 4 pinned that checkout to this
-# file, which turned the stale value into a red gate: v1.1.1's party/schema.json
-# predates `reporting_currency` and `publishes`, both of which this repo's own
-# party.yaml carries, so verify-insurer-party.sh refused
-# ("unknown top-level field 'reporting_currency'"). Moved to v2.0.1, the tag the
-# three adopters already pin and the oldest one whose party schema this party
-# validates against; party.yaml's inherits[] platform edge moved with it, because
-# party_artefact.py checks that edge against this file's tag. The quotes did not
-# re-render: pricing/quote.py imports nothing from platform except the ticket-77
-# pin rule, and no arithmetic in it comes from fair.py.
+# 2026-09-24, eco-system tickets 62 and 77. Moved from v1.1.1 to v3.3.0, the
+# release all three adopters composed their v2.0.0 exposures under.
+# pricing/quote.py reads one rule out of this pin, party/pin_content.py (a pinned
+# tree must carry the section the pin is used for), and no tag before v3.0.0
+# carries that file, so under v1.1.1 the rule could never run. The release
+# gate's platform checkout does NOT read this file: release.yml pins its
+# verifier software in its own env (PLATFORM_TAG), because that checkout grades
+# this party and is not one of its parents. The quotes did not re-render in
+# this change: quote.py imports nothing from platform except the pin rule, and
+# no arithmetic in it comes from fair.py. fetch.yml's re-quote records the new
+# platform version in priced_against when it next prices.
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: GitRepository
 metadata:
@@ -41,5 +40,5 @@ spec:
   interval: 1m
   url: https://github.com/policy-as-versioned-platform/platform
   ref:
-    tag: v2.0.1
-    commit: 533dccb0a823001b396fd60ab08014bf75065a37
+    tag: v3.3.0
+    commit: 38089a68769453db9ea3faf0ee637ae93f309980

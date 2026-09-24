@@ -68,12 +68,13 @@ PLATFORM_DIR="${PLATFORM_DIR:-../platform}"
 # (BUILD-BRIEF definition of done, point 2). Eco-system ticket 77 gave
 # pricing/quote.py two new behaviours that NOTHING else in this repository or in
 # the hub's gate reaches: a refusal (never emit `priced_against` naming a version
-# whose tree lacks the `exposure` section it priced) and a could-not-look (no
-# platform tag carries party/pin_content.py yet, and a rule the estate has not
-# released is not a reason to stop a clock that would otherwise run). The
-# published quotes below are all priced from trees that DO carry the section, so
-# neither path is on the estate-observation route and without this leg the whole
-# of ticket 77's insurer half would be graded by no check anywhere.
+# whose tree lacks the `exposure` section it priced) and a could-not-look (the
+# platform checkout it is handed carries no party/pin_content.py -- no platform
+# tag before v3.0.0 does -- and a rule that release never shipped is not a reason
+# to stop a clock that would otherwise run). The estate observation below grades
+# the published quotes and never hands the pricer a pinned tree without the
+# section, so neither path is on its route, and without this leg the whole of
+# ticket 77's insurer half would be graded by no check anywhere.
 #
 # It prints ONE verdict line, and the main block records it, so the aggregate at
 # the bottom counts it like any other check. `--selfcheck` runs it alone.
@@ -122,13 +123,13 @@ with tempfile.TemporaryDirectory() as tmp:
 
     # Leg 1. The pinned platform release does not carry the rule. Could-not-look, never a
     # refusal: refusing here would stop the scheduled re-quote on every adopter because a
-    # rule the estate has not released yet could not be read.
+    # rule the pinned release never shipped could not be read.
     quote.PLATFORM_DIR = os.path.join(tmp, "platform-without-the-rule")
     try:
         graded = quote.refuse_unless_tree_carries_exposure("driftwood", adopters, parents)
     except quote.Refused as e:
         fail(f"a pinned platform release with no party/pin_content.py made the pricer refuse "
-             f"({e}); an unreleased rule must not stop the clock")
+             f"({e}); a rule the pinned release never shipped must not stop the clock")
     if graded is not False:
         fail("the pricer reported it had graded the pin while the rule was unreadable")
 
@@ -137,8 +138,8 @@ with tempfile.TemporaryDirectory() as tmp:
     if not os.path.isfile(rule):
         print(f"SKIP: quote.py pin-content seam: the could-not-look half is graded (a platform "
               f"release without the rule prices on and says so), but the REFUSAL half could not "
-              f"be looked at: no {rule} in the platform checkout this run was given, and no "
-              f"platform tag carries the rule yet")
+              f"be looked at: no {rule} in the platform checkout this run was given (no platform "
+              f"tag before v3.0.0 carries it; this repository pins v3.3.0)")
         sys.exit(3)
     quote.PLATFORM_DIR = PLATFORM_DIR
     try:

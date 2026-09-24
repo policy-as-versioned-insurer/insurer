@@ -81,7 +81,8 @@ EXPOSURE_FILE = os.path.join("composed", "HEADER.yaml")
 # here would make two rules that could disagree; importing it through the pinned dependency is the
 # same "library, not a service" shape every adopter's shift-left.yml already uses for
 # party_artefact.py and composition.py. PLATFORM_DIR is the checkout, the way verify-insurer-
-# quote.sh already names it; the release and fetch workflows check platform out at the pin.
+# quote.sh already names it; fetch.yml checks platform out at the pin. (release.yml's platform
+# checkout is verifier software pinned in its own env, not this pin.)
 # A PINNED release that does not carry the rule yet is a could-not-look and not a refusal -- see
 # pin_content() below, which is where that decision is written down and why.
 PLATFORM_DIR = os.environ.get("PLATFORM_DIR") or os.path.join(os.path.dirname(REPO), "platform")
@@ -117,16 +118,14 @@ def pin_content():
     """platform/party/pin_content.py, out of this repo's PINNED platform checkout, or None when
     the platform release this repository pins does not carry it.
 
-    None is a COULD-NOT-LOOK, deliberately, and not a refusal. The rule is new on the platform's
-    `ecosystem/build-2026-09-03` branch and no signed platform tag carries it yet (checked
-    2026-09-04, tag by tag: v0.1.0 to v2.0.1 and policy/v2.0.0 to policy/v4.0.0 -- none has
-    party/pin_content.py). Refusing here would have stopped a re-quote clock that works today on
-    every adopter, on the ground that a rule the estate has not released yet could not be read:
-    that is a check breaking the thing it grades. The pin is checked instead by the hub's
-    verify/feed-contract, which reads the publisher's real tag with git plumbing and needs no
-    platform release, and the day platform cuts a tag carrying this file the insurer's pin bump
-    turns the rule on here with no further change. See ## Waits on the owner in eco-system
-    ticket 77."""
+    None is a COULD-NOT-LOOK, deliberately, and not a refusal. No platform tag before v3.0.0
+    carries party/pin_content.py (checked tag by tag: v0.1.0 to v2.0.1 and policy/v2.0.0 to
+    policy/v4.0.0 have none; v3.0.0 to v3.4.1 and policy/v5.0.0 have it). Refusing when the
+    pinned release lacks it would stop the re-quote clock on every adopter because a rule that
+    release never shipped could not be read: a check breaking the thing it grades. The pin is
+    then checked by the hub's verify/feed-contract, which reads the publisher's real tag with
+    git plumbing and needs no platform release. This repository's pin names v3.3.0 since
+    2026-09-24, so on the clock the rule runs; the None path is for a checkout that lacks it."""
     path = os.path.join(PLATFORM_DIR, "party", "pin_content.py")
     if not os.path.isfile(path):
         return None
@@ -156,10 +155,10 @@ def refuse_unless_tree_carries_exposure(adopter, adopters_dir, parents):
     if rule is None:
         print(f"NOTE: the platform release this repository pins "
               f"(gitops/platform/platform-pin.yaml) carries no party/pin_content.py at "
-              f"{PLATFORM_DIR} -- no platform tag does yet -- so whether {adopter}'s pinned tree "
+              f"{PLATFORM_DIR} -- no platform tag before v3.0.0 does -- so whether {adopter}'s pinned tree "
               f"really carries the exposure section this quote prices was NOT checked here. It "
-              f"is checked by the hub's verify/feed-contract against {adopter}'s real remote, "
-              f"which today says could-not-look on this very pin. This is a could-not-look, not "
+              f"is checked by the hub's verify/feed-contract against {adopter}'s real remote. "
+              f"This is a could-not-look, not "
               f"a pass and not a refusal.", file=sys.stderr)
         return False
     lacks = rule.refusal_for_pin(
