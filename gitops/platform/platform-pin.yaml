@@ -17,8 +17,21 @@
 # A pure consumer therefore CAN carry the pin the checker expects; no comment
 # in the checker was needed and none was added.
 #
-# Bump = one reviewed PR changing .spec.ref.tag and .spec.ref.commit together,
-# and the quotes re-render against the new platform in the same PR.
+# Bump = one reviewed PR changing .spec.ref.tag and .spec.ref.commit together.
+# The quotes do not re-render in that PR. fetch.yml re-prices each adopter
+# from the new pin on its next run and proposes the re-quote as its own PR,
+# which records the new platform version in priced_against.
+#
+# 2026-09-24, eco-system tickets 62 and 77. Moved from v1.1.1 to v3.3.0, the
+# release all three adopters composed their v2.0.0 exposures under.
+# pricing/quote.py reads one rule out of this pin, party/pin_content.py (a pinned
+# tree must carry the section the pin is used for), and no tag before v3.0.0
+# carries that file, so under v1.1.1 the rule could never run. The release
+# gate's platform checkout does NOT read this file: release.yml pins its
+# verifier software in its own env (PLATFORM_TAG), because that checkout grades
+# this party and is not one of its parents. quote.py reads nothing else out of
+# this checkout: its formula is its own code, so the pin moves no premium by
+# itself. The premiums move with the exposure pins in party.yaml.
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: GitRepository
 metadata:
@@ -28,5 +41,5 @@ spec:
   interval: 1m
   url: https://github.com/policy-as-versioned-platform/platform
   ref:
-    tag: v1.1.1
-    commit: 58ef9c57e53543997e5ddbe829a7b7c9a2282c60
+    tag: v3.3.0
+    commit: 38089a68769453db9ea3faf0ee637ae93f309980
