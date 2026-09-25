@@ -29,7 +29,7 @@
       }
     ],
     "premium": {
-      "amount": 128862.17,
+      "amount": 175794.98,
       "currency": "GBP",
       "perspective": "ludlow"
     },
@@ -39,8 +39,8 @@
       "rate": 0.045,
       "load": 0.35,
       "excluded": 7231832.815811407,
-      "insured": 2126187.982537862,
-      "layer": 2121187.982537862
+      "insured": 2898744.569527032,
+      "layer": 2893744.569527032
     },
     "valid_from": "2026-08-28",
     "valid_until": "2027-08-28",
@@ -48,14 +48,14 @@
       {
         "party": "platform",
         "kind": "implementations",
-        "version": "1.1.1"
+        "version": "3.3.0"
       },
       {
         "party": "ludlow",
         "kind": "feed",
         "name": "exposure",
-        "version": "v1.1.0",
-        "exposure_sha256": "sha256:b0808d7448a35baed84f2bd22e90189e71432c9110aa17e1a8661a48a9bdab58"
+        "version": "v2.0.0",
+        "exposure_sha256": "sha256:aa708ea54434e0c2f5aaa043ef2c1bb3142b243cc91e7bda6f7447be864336fb"
       }
     ],
     "conditions": [
