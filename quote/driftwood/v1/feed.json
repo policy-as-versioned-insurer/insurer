@@ -47,14 +47,14 @@
       {
         "party": "platform",
         "kind": "implementations",
-        "version": "1.1.1"
+        "version": "3.3.0"
       },
       {
         "party": "driftwood",
         "kind": "feed",
         "name": "exposure",
-        "version": "v1.1.0",
-        "exposure_sha256": "sha256:397abe81d6cbdbd7b27a5d2516dd9c35417e9922f995b8b6af7d1fca34829820"
+        "version": "v2.0.0",
+        "exposure_sha256": "sha256:7f6b9c1efc06139d261d18d60fb660d0dc6500df8f48f73e581b0d007cb568ed"
       }
     ],
     "conditions": [
