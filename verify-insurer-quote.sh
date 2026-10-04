@@ -81,9 +81,11 @@ PLATFORM_DIR="${PLATFORM_DIR:-../platform}"
 selfcheck() {
   python3 - "$PLATFORM_DIR" <<'PYSELF'
 import importlib.util
+import io
 import os
 import sys
 import tempfile
+import unittest
 
 import yaml
 
@@ -91,6 +93,17 @@ PLATFORM_DIR = sys.argv[1]
 spec = importlib.util.spec_from_file_location("quote", os.path.join("pricing", "quote.py"))
 quote = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(quote)
+
+# The quote's missing-total contract is exercised by this public verifier,
+# before any estate instrument is consulted. An unpriced book must refuse;
+# a known zero must retain the ordinary formula's zero layer.
+suite = unittest.defaultTestLoader.discover("pricing", pattern="test_quote_missing_total.py")
+assert suite.countTestCases(), "missing-total regressions were not discovered"
+report = io.StringIO()
+result = unittest.TextTestRunner(stream=report).run(suite)
+if not result.wasSuccessful():
+    print("FAIL: quote.py missing-total contract: " + report.getvalue().strip())
+    sys.exit(1)
 
 
 def adopter_tree(root, with_exposure):
