@@ -248,6 +248,10 @@ def price(exposure, terms):
         raise Refused(f"missing instrument: terms are in {terms['currency']} but "
                       f"{exposure['perspective']}'s exposure is in {exposure['currency']} -- "
                       f"a layer is not computed across two currencies")
+    if exposure.get("total") is None:
+        raise Refused(f"missing instrument: {exposure['perspective']}'s signed exposure "
+                      f"carries no priced total -- an unpriced book supplies neither a "
+                      f"layer nor a premium")
     attachment = float(exposure["attachment"]["amount"])
     if exposure["attachment"]["currency"] != exposure["currency"]:
         raise Refused(f"missing instrument: {exposure['perspective']} signs its appetite in "
