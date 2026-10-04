@@ -32,6 +32,12 @@
 # this party and is not one of its parents. quote.py reads nothing else out of
 # this checkout: its formula is its own code, so the pin moves no premium by
 # itself. The premiums move with the exposure pins in party.yaml.
+# 2026-10-04: move the pure-consumer parent to genuine v5.0.0, the existing
+# complete tree containing every current implementations discovery path.
+# The historical v3.3.0 exposure snapshots, signed terms, and all published
+# quote bodies remain unchanged. Future re-quote provenance records this
+# parent move; no premium is changed by editing the pin. No Kustomization
+# or cloud activation is added: this remains a GitRepository document only.
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: GitRepository
 metadata:
@@ -41,5 +47,5 @@ spec:
   interval: 1m
   url: https://github.com/policy-as-versioned-platform/platform
   ref:
-    tag: v3.3.0
-    commit: 38089a68769453db9ea3faf0ee637ae93f309980
+    tag: v5.0.0
+    commit: 703eff6aee959843c4160aa54fd03413f62858cc
