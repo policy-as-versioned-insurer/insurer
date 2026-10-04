@@ -37,7 +37,7 @@
       "rate": 0.03,
       "load": 0.3,
       "excluded": 2711937.3059292776,
-      "insured": 6550428.02573782,
+      "insured": 6791977.865925621,
       "layer": 5000000.0
     },
     "valid_from": "2026-08-28",
@@ -46,14 +46,14 @@
       {
         "party": "platform",
         "kind": "implementations",
-        "version": "1.1.1"
+        "version": "3.3.0"
       },
       {
         "party": "tuppence",
         "kind": "feed",
         "name": "exposure",
-        "version": "v1.1.0",
-        "exposure_sha256": "sha256:25418091ed8922123f308cf7dcabd82a8a4aa4446203cae39725b6ec8b0d45da"
+        "version": "v2.0.0",
+        "exposure_sha256": "sha256:e33ddb2b1b78ef206dafa627cf66bee759d528c8c7829a58f704e44d3fd1b254"
       }
     ],
     "conditions": [
