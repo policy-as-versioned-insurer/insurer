@@ -356,27 +356,137 @@ jobs:
           TAG: ${{ steps.pin.outputs.tag }}
         run: |
           set -euo pipefail
+          case "${ADOPTER}" in driftwood|ludlow|tuppence) ;; *) exit 1;; esac
+          source_head="$(git rev-parse HEAD)"
+          paths=("quote/${ADOPTER}/v1/feed.json" "quote/${ADOPTER}/bump.yaml")
+          # Only these generated paths belong to this step. Unrelated dirty/staged
+          # declarations survive so the always-running cage still rejects them.
+          cleanup() {
+            rc=$?
+            trap - EXIT
+            git checkout --detach "${source_head}" --quiet || rc=1
+            git restore --source="${source_head}" --staged --worktree -- "${paths[@]}" || rc=1
+            exit "${rc}"
+          }
+          trap cleanup EXIT
           branch="requote/${ADOPTER}-$(date -u +%Y%m%d)"
-          if git ls-remote --exit-code --heads origin "${branch}" >/dev/null 2>&1; then
-            echo "${branch} already open -- nothing to propose"; exit 0
+          read_pr() {
+            gh pr list --repo "${GITHUB_REPOSITORY}" --base main --head "${branch}" \
+              --state all --limit 100 --json number,state,headRefOid,url > "$RUNNER_TEMP/requote-prs.json" || {
+                echo "PENDING: proposal lifecycle could not be read" >&2; return 1;
+              }
+            python3 - "$RUNNER_TEMP/requote-prs.json" <<'PY'
+          import json, sys
+          rows = json.load(open(sys.argv[1]))
+          if len(rows) > 1:
+              sys.exit("PENDING: ambiguous proposal lifecycle; no branch or PR is changed")
+          if not rows:
+              print("NONE"); sys.exit()
+          row = rows[0]
+          if row.get('state') not in {'OPEN', 'CLOSED', 'MERGED'}:
+              sys.exit("PENDING: unreadable proposal lifecycle")
+          print(row['state'], row['headRefOid'], row['url'])
+          PY
+          }
+          lifecycle="$(read_pr)"
+          read -r state pr_head pr_url <<< "${lifecycle}"
+          if remote="$(git ls-remote --exit-code --heads origin "refs/heads/${branch}")"; then
+            proposal_head="${remote%%[[:space:]]*}"
+            git fetch --no-tags origin "refs/heads/${branch}"
+            [ "$(git rev-parse FETCH_HEAD)" = "${proposal_head}" ] || {
+              echo "::error::PENDING: proposal ref moved while read"; exit 1;
+            }
+          else
+            probe_rc=$?
+            [ "${probe_rc}" = 2 ] || { echo "::error::PENDING: proposal ref could not be read"; exit 1; }
+            if [[ "${state}" = CLOSED || "${state}" = MERGED ]]; then
+              echo "::notice::${state} proposal ${pr_url} is respected; its deleted branch is not recreated and no new quote is proposed."
+              exit 0
+            fi
+            [ "${state}" = NONE ] || { echo "::error::PENDING: open PR has no readable branch"; exit 1; }
+            git checkout -b "${branch}"
+            # --only keeps unrelated staged declarations out of the proposal.
+            git -c gpg.format=x509 -c gpg.x509.program=gitsign \
+              -c user.name="insurer pricing clock" \
+              -c user.email="requote-bot@policy-as-versioned-insurer.invalid" \
+              commit -S --only -m "quote-${ADOPTER}: ${BUMP} re-quote against ${TAG}" -- "${paths[@]}"
+            proposal_head="$(git rev-parse HEAD)"
+            # Empty expectation: the remote ref MUST NOT EXIST. This cannot even
+            # fast-forward over an ancestor ref created by a concurrent run.
+            git push --force-with-lease="refs/heads/${branch}:" origin "HEAD:refs/heads/${branch}" || {
+              echo "::error::PENDING: proposal ref was not created; an existing ref is never overwritten"
+              exit 1
+            }
           fi
-          git checkout -b "${branch}"
-          git add "quote/${ADOPTER}/v1/feed.json" "quote/${ADOPTER}/bump.yaml"
-          git -c gpg.format=x509 -c gpg.x509.program=gitsign \
-            -c user.name="insurer pricing clock" \
-            -c user.email="requote-bot@policy-as-versioned-insurer.invalid" \
-            commit -S -m "quote-${ADOPTER}: ${BUMP} re-quote against ${TAG}"
-          git push origin "${branch}"
-          gh pr create --base main --head "${branch}" \
-            --title "quote-${ADOPTER}: ${BUMP} re-quote against ${TAG}" \
-            --body "$(printf '%s\n' \
-              "The daily pricing clock re-priced \`${ADOPTER}\`'s signed exposure at \`${TAG}\` under this repo's own signed terms and computed a **${BUMP}** bump against \`quote/${ADOPTER}/rule.yaml\`." \
-              "" \
-              "- ${PREMIUM}, booked as a contract cost under perspective \`${ADOPTER}\`" \
-              "- priced by \`pricing/quote.py\`, formula version in the payload" \
-              "- \`quote/${ADOPTER}/bump.yaml\` now declares \`${BUMP}\`" \
-              "" \
-              "Merging publishes nothing. Dispatch \`cut-release.yml\` with version \`quote-${ADOPTER}/vX.Y.Z\` to sign the tag. Until then \`${ADOPTER}\` stays pinned to the quote it already merged.")"
+          parent="$(git show -s --format=%P "${proposal_head}")"
+          [[ "${parent}" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::PENDING: proposal is not one original commit"; exit 1; }
+          git merge-base --is-ancestor "${parent}" "${source_head}"
+          [ "$(git show -s --format=%ae "${proposal_head}")" = requote-bot@policy-as-versioned-insurer.invalid ]
+          [ "$(git show -s --format=%ce "${proposal_head}")" = requote-bot@policy-as-versioned-insurer.invalid ]
+          subject="$(git show -s --format=%s "${proposal_head}")"
+          case "${subject}" in
+            "quote-${ADOPTER}: major re-quote against "*|"quote-${ADOPTER}: minor re-quote against "*|"quote-${ADOPTER}: patch re-quote against "*) ;;
+            *) echo "::error::PENDING: proposal is not this adopter's clock re-quote"; exit 1;;
+          esac
+          changed="$(git diff --name-only "${parent}" "${proposal_head}")"
+          [ -n "${changed}" ] || { echo "::error::PENDING: proposal has no quote change"; exit 1; }
+          while IFS= read -r path; do
+            case "${path}" in "${paths[0]}"|"${paths[1]}") ;;
+              *) echo "::error::PENDING: proposal changes paths outside this quote"; exit 1;;
+            esac
+          done <<< "${changed}"
+          gitsign verify \
+            --certificate-identity "https://github.com/${GITHUB_REPOSITORY}/.github/workflows/fetch.yml@refs/heads/main" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            --certificate-github-workflow-repository "${GITHUB_REPOSITORY}" \
+            --certificate-github-workflow-ref refs/heads/main \
+            --certificate-github-workflow-sha "${parent}" "${proposal_head}"
+          if git diff --quiet "${proposal_head}" -- "${paths[@]}"; then
+            different=0
+          else
+            diff_rc=$?
+            [ "${diff_rc}" = 1 ] || { echo "::error::PENDING: quote bytes could not be compared"; exit 1; }
+            different=1
+          fi
+          if [[ "${state}" = CLOSED || "${state}" = MERGED ]]; then
+            if [ "${different}" = 1 ]; then
+              echo "::error::PENDING: newly computed bytes are different; ${state} proposal ${pr_url} is respected and no current quote is proposed."
+              exit 1
+            fi
+            echo "::notice::${state} proposal ${pr_url} is respected; no new quote is proposed."
+            exit 0
+          fi
+          [ "${state}" != OPEN ] || [ "${pr_head}" = "${proposal_head}" ] || {
+            echo "::error::PENDING: PR head differs from the preserved original"; exit 1;
+          }
+          if [ "${state}" = NONE ]; then
+            {
+              printf 'Original signed re-quote proposal for %s.\n\nCommit: %s\n' "${ADOPTER}" "${proposal_head}"
+              echo "Review the contract amount, signed exposure/platform pins and computed bump in the committed quote and bump files."
+              if [ "${different}" = 1 ]; then
+                echo "PENDING: this run computed different bytes; this recovered original is not the current computation."
+              fi
+              echo "Merging publishes nothing. A human dispatches cut-release.yml for the signed quote release."
+            } > "$RUNNER_TEMP/requote-body.md"
+            if ! gh pr create --repo "${GITHUB_REPOSITORY}" --base main --head "${branch}" \
+              --title "${subject}" --body-file "$RUNNER_TEMP/requote-body.md"; then
+              # A concurrent run may have created the same PR. Re-read; never guess.
+              echo "::warning::PR creation returned no success; checking the exact original's lifecycle"
+            fi
+            lifecycle="$(read_pr)"
+            read -r state pr_head pr_url <<< "${lifecycle}"
+            [ "${state}" = OPEN ] && [ "${pr_head}" = "${proposal_head}" ] || {
+              echo "::error::PENDING: original proposal is durable but has no matching open PR"; exit 1;
+            }
+          fi
+          [ "$(git ls-remote --heads origin "refs/heads/${branch}" | cut -f1)" = "${proposal_head}" ] || {
+            echo "::error::PENDING: proposal ref changed during publication"; exit 1;
+          }
+          if [ "${different}" = 1 ]; then
+            echo "::error::PENDING: preserved ${proposal_head} at ${pr_url}; newly computed quote bytes are different and are not proposed"
+            exit 1
+          fi
+          echo "::notice::Original ${proposal_head} is proposed at ${pr_url}; main is unchanged."
 
       # The same cage the fetch job carries, for the same reason (D1): a clock
       # proposes, it never declares. The PR step above works on its OWN branch;
