@@ -41,6 +41,8 @@
 # It also LOOKS at the exposure parents party_artefact.py can only note (no Flux
 # pin exists for a `feed` kind anywhere in this estate, and feed-contract grades
 # subscriptions only for parties with the adopter role, which this one is not).
+# --published-only reads those artefacts without the separate synthetic selfcheck;
+# the default still runs both, and --selfcheck runs the synthetic proof alone.
 set -uo pipefail
 
 # Gate contract (BUILD-BRIEF.md): exit 0 = observed true, exit 3 = could not
@@ -90,6 +92,7 @@ import unittest
 import yaml
 
 PLATFORM_DIR = sys.argv[1]
+os.environ["PLATFORM_DIR"] = PLATFORM_DIR
 spec = importlib.util.spec_from_file_location("quote", os.path.join("pricing", "quote.py"))
 quote = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(quote)
@@ -97,12 +100,12 @@ spec.loader.exec_module(quote)
 # The quote's missing-total contract is exercised by this public verifier,
 # before any estate instrument is consulted. An unpriced book must refuse;
 # a known zero must retain the ordinary formula's zero layer.
-suite = unittest.defaultTestLoader.discover("pricing", pattern="test_quote_missing_total.py")
+suite = unittest.defaultTestLoader.discover("pricing", pattern="test_quote_*.py")
 assert suite.countTestCases(), "missing-total regressions were not discovered"
 report = io.StringIO()
 result = unittest.TextTestRunner(stream=report).run(suite)
 if not result.wasSuccessful():
-    print("FAIL: quote.py missing-total contract: " + report.getvalue().strip())
+    print("FAIL: quote public CLI/schema and missing-total contracts: " + report.getvalue().strip())
     sys.exit(1)
 
 
@@ -179,7 +182,8 @@ with tempfile.TemporaryDirectory() as tmp:
 
 print("PASS: quote.py pin-content seam: with the rule absent from the pinned platform release "
       "the pricer says could-not-look and prices on; with it present, a pinned tree that lacks "
-      "the exposure section is refused as a missing instrument and one that carries it is priced")
+      "the exposure section is refused as a missing instrument and one that carries it is priced; "
+      f"{result.testsRun} registered synthetic public-CLI/reader and missing-total cases passed")
 PYSELF
 }
 
@@ -191,7 +195,10 @@ fi
 # stderr carries the pricer's own could-not-look NOTE, which is the thing being graded and not
 # a verdict; the verdict is the single line on stdout.
 _sc_rc=0
-SELFCHECK_LINE="$(selfcheck 2>/dev/null)" || _sc_rc=$?
+SELFCHECK_LINE=""
+if [ "${1:-}" != "--published-only" ]; then
+  SELFCHECK_LINE="$(selfcheck 2>/dev/null)" || _sc_rc=$?
+fi
 if [ "$_sc_rc" != 0 ] && [ "$_sc_rc" != 3 ]; then
   echo "${SELFCHECK_LINE:-FAIL: verify-insurer-quote.sh --selfcheck crashed}"
   exit 1
@@ -228,6 +235,11 @@ def load_json(path):
 
 def close(a, b):
     return abs(float(a) - float(b)) <= max(1e-6, 1e-9 * max(abs(float(a)), abs(float(b))))
+
+
+def feed_major(version):
+    match = re.fullmatch(r"v?(0|[1-9][0-9]*)(?:\.[0-9]+\.[0-9]+)?", version) if isinstance(version, str) else None
+    return int(match[1]) if match else None
 
 
 # The seam's verdict, graded above on synthetic trees, counted here so the aggregate at the
@@ -346,10 +358,9 @@ if fair is None:
     out("SKIP", f"no platform checkout at {PLATFORM_DIR} (set PLATFORM_DIR) -- cannot look at "
                 f"whether the estate's own summing helper refuses to cross the two perspectives")
 
-payload_schema = load_json("quote/payload.schema.json")
-
 for entry in published:
     name, path = entry["name"], entry["path"]
+    payload_schema = load_json(entry["payload_schema"])
     adopter = name.split("-", 1)[1]
     # by major NUMBER, not by name: sorted() would put v10 before v2.
     feeds = sorted((f for f in os.listdir(path) if re.fullmatch(r"v\d+", f)),
@@ -524,10 +535,15 @@ for entry in published:
 
     # the premium as it actually lands on the insured's sheet
     evidence_file = os.path.join(ADOPTERS_DIR, adopter, "composed", "evidence.json")
-    subscribes = any(i.get("party") == "insurer" and i.get("name") == name
-                     for i in adopter_party.get("inherits") or [])
+    subscriptions = [i for i in adopter_party.get("inherits") or []
+                     if i.get("party") == "insurer" and i.get("name") == name]
+    quote_major = feed_major(doc.get("version"))
+    if quote_major is None or any(feed_major(i.get("version")) is None for i in subscriptions):
+        out("FAIL", f"{name}: unreadable quote or subscription version -- no current adoption inferred")
+        continue
+    subscribes = any(feed_major(i["version"]) == quote_major for i in subscriptions)
     if not subscribes:
-        out("PASS", f"{name}: {adopter} does not pin this quote yet, so no premium line is "
+        out("PASS", f"{name}: {adopter} does not pin this quote major {quote_major}, so no premium line is "
                     f"expected on its sheet (named absence: a quote is published, not imposed)")
     elif not os.path.isfile(evidence_file):
         out("SKIP", f"{name}: {adopter} pins this quote but has composed no evidence to book it "
@@ -540,6 +556,10 @@ for entry in published:
                         f"{len(booked)} premium entries for it, not exactly one")
         else:
             b = booked[0]
+            if b.get("source") != "insurer" or feed_major(b.get("new_version")) != quote_major or \
+                    b.get("quote_version") != doc["version"] or b.get("priced_against") != q["priced_against"]:
+                out("FAIL", f"{name}: booked quote version/provenance does not match this published quote")
+                continue
             reporting = adopter_party.get("reporting_currency") or "USD"
             if b["perspective"] != adopter or b["currency"] != reporting:
                 out("FAIL", f"{name}: the booked premium is {b['perspective']}/{b['currency']}, "

@@ -49,6 +49,7 @@ ADR-0021). No sum here ever crosses the two.
 Usage:
     quote.py render  <adopter> [--adopters-dir DIR] [--published-at TS]
     quote.py show    <adopter> [--adopters-dir DIR]     # the payload, no write
+    quote.py feed-path <adopter>                       # repository-relative destination
     quote.py selfcheck                                  # runnable asserts
 """
 from __future__ import annotations
@@ -71,7 +72,9 @@ REPO = os.path.dirname(HERE)
 FORMULA = "layer-rate-on-line"
 FORMULA_VERSION = "1.0.0"
 
-PAYLOAD_SCHEMA = "quote/payload.schema.json"
+PAYLOAD_SCHEMA = "quote/payload.v2.schema.json"
+DISCLOSURE = ("Illustrative counterparty. This model-only quote is an ordinal comparison from "
+              "editorial inputs; it is not an independent insurance offer or actuarial assurance.")
 # Where an adopter's own signed exposure lives inside its repo.
 EXPOSURE_FILE = os.path.join("composed", "HEADER.yaml")
 
@@ -364,6 +367,8 @@ def payload(adopter, adopters_dir):
     terms = terms_of(adopter)
     worked = price(exposure, terms)
     return {
+        "usage": "illustrative",
+        "disclosure": DISCLOSURE,
         "adopter": adopter,
         # The insurer's own arithmetic is the insurer's view; the premium below
         # is booked on the adopter's sheet. Two perspectives, never one sum.
@@ -584,7 +589,7 @@ def selfcheck():
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
-    for name in ("render", "show", "bump"):
+    for name in ("render", "show", "bump", "feed-path"):
         p = sub.add_parser(name)
         p.add_argument("adopter")
         p.add_argument("--adopters-dir", default=os.path.dirname(REPO),
@@ -597,7 +602,9 @@ def main(argv=None):
     if args.cmd == "selfcheck":
         return selfcheck()
     try:
-        if args.cmd == "show":
+        if args.cmd == "feed-path":
+            print(os.path.relpath(feed_path(args.adopter), REPO))
+        elif args.cmd == "show":
             print(json.dumps(envelope(args.adopter, args.adopters_dir), indent=2))
         elif args.cmd == "bump":
             print(bump(args.adopter, args.adopters_dir))

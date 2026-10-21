@@ -19,7 +19,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW = ROOT / '.github/workflows/fetch.yml'
 BRANCH = 'requote/driftwood-20261016'
-QUOTE_PATHS = ['quote/driftwood/v1/feed.json', 'quote/driftwood/bump.yaml']
+QUOTE_PATHS = ['quote/driftwood/v2/feed.json', 'quote/driftwood/bump.yaml']
 
 
 def scenario(tmp_path: Path, case: str) -> dict:
@@ -42,6 +42,12 @@ def scenario(tmp_path: Path, case: str) -> dict:
     for path in QUOTE_PATHS:
         (work / path).parent.mkdir(parents=True, exist_ok=True)
         (work / path).write_text('synthetic original bytes\n')
+    (work / 'quote/driftwood/v1').mkdir()
+    (work / 'quote/driftwood/v1/feed.json').write_text('synthetic immutable v1 quote\n')
+    (work / 'pricing').mkdir()
+    shutil.copy2(ROOT / 'pricing/quote.py', work / 'pricing/quote.py')
+    (work / 'terms').mkdir()
+    (work / 'terms/driftwood.yaml').write_text('version: 2.0.0\n')
     (work / 'README.md').write_text('synthetic declaration\n')
     git('add', '-A', cwd=work)
     git('commit', '-qm', 'synthetic source', cwd=work)

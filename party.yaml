@@ -85,19 +85,19 @@ publishes:
   - kind: feed
     name: quote-driftwood
     path: quote/driftwood
-    payload_schema: quote/payload.schema.json
+    payload_schema: quote/payload.v2.schema.json
     # Withdrawal is a new version plus a listing here, never a deleted tag
     # (ADR-0019 point 6). Nothing is withdrawn.
     revoked: []
   - kind: feed
     name: quote-tuppence
     path: quote/tuppence
-    payload_schema: quote/payload.schema.json
+    payload_schema: quote/payload.v2.schema.json
     revoked: []
   - kind: feed
     name: quote-ludlow
     path: quote/ludlow
-    payload_schema: quote/payload.schema.json
+    payload_schema: quote/payload.v2.schema.json
     revoked: []
 overlay:
   add: []
