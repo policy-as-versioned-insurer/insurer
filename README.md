@@ -25,3 +25,22 @@ The attachment is not this carrier's number: it **is** the adopter's own signed
 artefact. The premium is a contract cost booked under the *adopter's* perspective, beside its
 other costs; the layer arithmetic that produced it stays under `perspective: insurer` and the two
 are never summed. Nothing here is signed by anything but this repo's own gitsign tag.
+
+## Illustrative quote contract v2 (ticket162)
+
+New quotes carry `usage: illustrative` and a plain disclosure on the payload itself: the
+counterparty and quote are model-only ordinal comparisons, not independent insurance or
+actuarial assurance. `quote/payload.v2.schema.json` requires that disclosure; the original
+v1 schema and quote files remain unchanged. Changing the payload schema requires a major
+feed release under ADR0019. Formula1, signed economic inputs and validity dates are unchanged.
+
+`python3 pricing/quote.py feed-path <adopter>` prints the destination derived from that
+adopter's declared terms version. The scheduled proposer uses this same path for reading
+the generated premium and restricting its proposed files. The native reader uses the
+publication's declared schema and does not treat a v1 subscription/book as adoption of v2.
+Its default runs registered synthetic CLI/reader proofs and the actual artifact checks;
+`--published-only` runs only the latter, while `--selfcheck` runs only synthetic proofs.
+Synthetic Git tags/transport fixtures never establish genuine signature or insurance credit.
+
+The source-only implementation is not a v2 publication: new version/publication metadata,
+genuine pinned-input rendering, native verification and normal signed release remain required.

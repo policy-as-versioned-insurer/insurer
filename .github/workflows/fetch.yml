@@ -339,11 +339,13 @@ jobs:
           if [ "${bump}" != "none" ]; then
             PLATFORM_DIR=.platform python3 pricing/quote.py render "${{ matrix.adopter }}" --adopters-dir .adopters
             sed -i "s/^bump: .*/bump: ${bump}/" "quote/${{ matrix.adopter }}/bump.yaml"
-            python3 -c "
+            quote_path="$(python3 pricing/quote.py feed-path "${{ matrix.adopter }}")"
+            python3 - "${quote_path}" <<'PY' >> "$GITHUB_OUTPUT"
           import json
-          d = json.load(open('quote/${{ matrix.adopter }}/v1/feed.json'))['payload']
-          print('premium=%.2f %s' % (d['premium']['amount'], d['premium']['currency']))" \
-              >> "$GITHUB_OUTPUT"
+          import sys
+          d = json.load(open(sys.argv[1]))['payload']
+          print('premium=%.2f %s' % (d['premium']['amount'], d['premium']['currency']))
+          PY
           fi
 
       - name: propose the re-quote as a PR (a human merges; this clock never commits one)
@@ -358,7 +360,8 @@ jobs:
           set -euo pipefail
           case "${ADOPTER}" in driftwood|ludlow|tuppence) ;; *) exit 1;; esac
           source_head="$(git rev-parse HEAD)"
-          paths=("quote/${ADOPTER}/v1/feed.json" "quote/${ADOPTER}/bump.yaml")
+          quote_path="$(python3 pricing/quote.py feed-path "${ADOPTER}")"
+          paths=("${quote_path}" "quote/${ADOPTER}/bump.yaml")
           # Only these generated paths belong to this step. Unrelated dirty/staged
           # declarations survive so the always-running cage still rejects them.
           cleanup() {

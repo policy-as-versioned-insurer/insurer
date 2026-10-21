@@ -6,8 +6,8 @@
 # own signed appetite (`appetite.tolerance` on its party.yaml, rendered onto its
 # composed exposure section), seen from the other side. A carrier restating the
 # insured's retention in its own file is how the two come to disagree.
-version: 1.0.0
-published_at: '2026-08-28T00:00:00Z'
+version: 2.0.0
+published_at: '2026-10-21T18:02:05Z'
 valid_from: '2026-08-28'
 valid_until: '2027-08-28'
 currency: GBP
