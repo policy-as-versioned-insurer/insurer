@@ -1,8 +1,8 @@
 # The insurer's OWN signed terms for tuppence (ticket 36; ticket 14 answers 1
 # and 5). See driftwood.yaml for the long form of every field, including why the
 # attachment is not restated here: it is the insured's own signed appetite.
-version: 1.0.0
-published_at: '2026-08-28T00:00:00Z'
+version: 2.0.0
+published_at: '2026-10-21T18:02:05Z'
 valid_from: '2026-08-28'
 valid_until: '2027-08-28'
 currency: GBP

@@ -1,0 +1,82 @@
+{
+  "kind": "feed",
+  "name": "quote-ludlow",
+  "version": "2.0.0",
+  "published_by": "insurer",
+  "published_at": "2026-10-21T18:02:05Z",
+  "payload_schema": "quote/payload.v2.schema.json",
+  "payload": {
+    "usage": "illustrative",
+    "disclosure": "Illustrative counterparty. This model-only quote is an ordinal comparison from editorial inputs; it is not an independent insurance offer or actuarial assurance.",
+    "adopter": "ludlow",
+    "perspective": "insurer",
+    "currency": "GBP",
+    "attachment": {
+      "amount": 5000.0,
+      "currency": "GBP"
+    },
+    "limit": {
+      "amount": 4000000,
+      "currency": "GBP"
+    },
+    "exclusions": [
+      {
+        "regime": "uk-gdpr",
+        "control_ids": [
+          "pl-2",
+          "ra-3",
+          "ca-2"
+        ],
+        "why": "Governance-of-record failures: the shares ico's published weights put on the system security plan (pl-2), the risk assessment (ra-3) and the control assessment (ca-2) are retained by the insured."
+      }
+    ],
+    "premium": {
+      "amount": 175794.98,
+      "currency": "GBP",
+      "perspective": "ludlow"
+    },
+    "formula": {
+      "id": "layer-rate-on-line",
+      "version": "1.0.0",
+      "rate": 0.045,
+      "load": 0.35,
+      "excluded": 7231832.815811407,
+      "insured": 2898744.569527032,
+      "layer": 2893744.569527032
+    },
+    "valid_from": "2026-08-28",
+    "valid_until": "2027-08-28",
+    "priced_against": [
+      {
+        "party": "platform",
+        "kind": "implementations",
+        "version": "5.0.0"
+      },
+      {
+        "party": "ludlow",
+        "kind": "feed",
+        "name": "exposure",
+        "version": "v2.0.0",
+        "exposure_sha256": "sha256:aa708ea54434e0c2f5aaa043ef2c1bb3142b243cc91e7bda6f7447be864336fb"
+      }
+    ],
+    "conditions": [
+      {
+        "source": "nist",
+        "id": "ac-6",
+        "consequence": "void",
+        "why": "Least privilege enforced on the governed namespace."
+      },
+      {
+        "source": "nist",
+        "id": "cm-6",
+        "consequence": "uplift",
+        "uplift": {
+          "amount": 10000,
+          "currency": "GBP"
+        },
+        "why": "Configuration settings enforced; a lapse re-rates the account."
+      }
+    ]
+  }
+}
